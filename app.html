@@ -544,7 +544,7 @@ body{
     <div class="shift-timer" id="shiftDisp">00:00:00</div>
     <div id="shiftStatLine" style="text-align:center;font-size:.68rem;color:var(--text3);margin-bottom:9px;display:none"></div>
     <button class="btn btn-p" id="shiftBtn" onclick="toggleShift()" style="margin-bottom:6px">🚗 Start Shift</button>
-    <button class="btn btn-g btn-sm" style="width:100%" onclick="openModal('editShiftMod')">✏️ Log Past Shift</button>
+    <button class="btn btn-g btn-sm" style="width:100%" onclick="openLogPastShift()">✏️ Log Past Shift</button>
   </div>
 
   <div class="sgrid">
@@ -811,18 +811,23 @@ body{
   </div>
 </div>
 
-<!-- Edit Shift -->
+<!-- Edit / Log Past Shift -->
 <div class="ov" id="editShiftMod">
   <div class="modal">
-    <div class="mhandle"></div><h2>Log Past Shift</h2><div class="msub">Set exact times if you forgot to start</div>
+    <div class="mhandle"></div>
+    <h2 id="editShiftTitle">Log Past Shift</h2>
+    <div class="msub">Set exact times and earnings per platform</div>
+    <input type="hidden" id="editShiftId">
     <div class="iwrap"><label>Date</label><input type="date" id="sDate"></div>
     <div class="irow">
       <div class="iwrap"><label>Start Time</label><input type="time" id="sStart"></div>
       <div class="iwrap"><label>End Time</label><input type="time" id="sEnd"></div>
     </div>
-    <div class="iwrap"><label>Earnings ($)</label><input type="number" id="sEarned" placeholder="0.00" step="0.01"></div>
-    <div class="iwrap"><label>Notes</label><input type="text" id="sNotes" placeholder="SAN airport, surge..."></div>
-    <button class="btn btn-p" onclick="saveManualShift()">Save Shift</button>
+    <label style="font-size:.7rem;font-weight:700;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;display:block;margin:10px 0 7px">Earnings by Platform</label>
+    <div id="sRows"></div>
+    <button onclick="addSRow()" style="width:100%;background:none;border:1.5px dashed var(--border2);border-radius:var(--r);padding:8px;font-size:.76rem;font-weight:600;color:var(--text3);cursor:pointer;margin-top:5px">+ Add Platform</button>
+    <div class="iwrap" style="margin-top:10px"><label>Notes</label><input type="text" id="sNotes" placeholder="SAN airport, surge..."></div>
+    <button class="btn btn-p" style="margin-top:10px" onclick="saveManualShift()">Save Shift</button>
     <button class="btn btn-g" style="width:100%;margin-top:5px" onclick="closeModal('editShiftMod')">Cancel</button>
   </div>
 </div>
@@ -1692,7 +1697,7 @@ function renderEarnings() {
 }
 
 function renderShiftHist() {
-  const list=[...S.shifts].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const list=[...S.shifts].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,60);
   const countEl=document.getElementById('shiftHistCount');
   const el=document.getElementById('shiftHist');
   if(!el) return;
@@ -1708,13 +1713,22 @@ function renderShiftHist() {
     const rate=sh.perHour||0;
     const dateLabel=new Date(sh.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     const timeLabel=sh.start&&sh.end?`${sh.start} – ${sh.end}`:'';
-    return `<div class="txn">
-      <div class="tlogo" style="font-size:.95rem">🚗</div>
+    const platLabel=sh.platforms&&sh.platforms.length
+      ?sh.platforms.map(p=>`${p.platform} ${fmt(p.amount)}`).join(' + '):'';
+    return `<div class="txn" style="align-items:flex-start">
+      <div class="tlogo" style="font-size:.95rem;margin-top:2px">🚗</div>
       <div class="tbody">
         <div class="tname">${dateLabel}${sh.notes?' · '+sh.notes:''}</div>
         <div class="tmeta">${dur}${timeLabel?' · '+timeLabel:''}${rate>0?' · '+fmt(rate)+'/hr':''}</div>
+        ${platLabel?`<div class="tmeta" style="color:var(--text2)">${platLabel}</div>`:''}
       </div>
-      <div class="tamt" style="color:var(--green)">+${fmt(sh.earned||0)}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:8px">
+        <div class="tamt" style="color:var(--green)">+${fmt(sh.earned||0)}</div>
+        <div style="display:flex;gap:4px">
+          <button onclick="editShiftEntry('${sh.id}')" style="font-size:.6rem;padding:3px 7px;background:var(--s1);border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer">Edit</button>
+          <button onclick="deleteShiftEntry('${sh.id}')" style="font-size:.6rem;padding:3px 7px;background:none;border:1px solid var(--border2);border-radius:6px;color:var(--red);cursor:pointer">Delete</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -2530,20 +2544,96 @@ function tickShift() {
   const earned=Math.max(0,todayEarnings()-startE), hrs=el/3600000;
   document.getElementById('shiftStatLine').textContent=`${h}h ${m}m · ${fmt(earned)} earned · ${fmt(hrs>.05?earned/hrs:0)}/hr`;
 }
+let _sRowCount=0;
+function addSRow(platform='Uber', amount='') {
+  _sRowCount++;
+  const id=_sRowCount;
+  const row=document.createElement('div');
+  row.id=`sRow${id}`;
+  row.style.cssText='display:flex;gap:7px;align-items:center;margin-bottom:7px';
+  row.innerHTML=`
+    <select id="sPlat${id}" style="flex:1.2;background:var(--s1);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'Inter',sans-serif;font-size:.8rem;padding:8px 10px;outline:none">
+      <option value="Uber"${platform==='Uber'?' selected':''}>🚗 Uber</option>
+      <option value="Lyft"${platform==='Lyft'?' selected':''}>💜 Lyft</option>
+      <option value="Cash"${platform==='Cash'?' selected':''}>💵 Cash</option>
+      <option value="HopSkipDrive"${platform==='HopSkipDrive'?' selected':''}>🚐 HopSkipDrive</option>
+      <option value="Instacart"${platform==='Instacart'?' selected':''}>🛒 Instacart</option>
+      <option value="DoorDash"${platform==='DoorDash'?' selected':''}>🍔 DoorDash</option>
+      <option value="Other"${platform==='Other'?' selected':''}>💰 Other</option>
+    </select>
+    <input type="number" id="sAmt${id}" value="${amount}" placeholder="0.00" step="0.01" min="0"
+      style="flex:1;background:var(--s1);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;padding:8px 10px;outline:none">
+    <button onclick="document.getElementById('sRow${id}').remove()" style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0">×</button>`;
+  document.getElementById('sRows').appendChild(row);
+}
+function openLogPastShift() {
+  document.getElementById('editShiftId').value='';
+  document.getElementById('editShiftTitle').textContent='Log Past Shift';
+  document.getElementById('sDate').value=_todayStr;
+  document.getElementById('sStart').value='';
+  document.getElementById('sEnd').value='';
+  document.getElementById('sNotes').value='';
+  document.getElementById('sRows').innerHTML='';
+  _sRowCount=0;
+  addSRow('Uber','');
+  openModal('editShiftMod');
+}
+function editShiftEntry(id) {
+  const sh=S.shifts.find(s=>s.id===id); if(!sh) return;
+  document.getElementById('editShiftId').value=id;
+  document.getElementById('editShiftTitle').textContent='Edit Shift';
+  document.getElementById('sDate').value=sh.date||_todayStr;
+  document.getElementById('sStart').value=sh.start||'';
+  document.getElementById('sEnd').value=sh.end||'';
+  document.getElementById('sNotes').value=sh.notes||'';
+  document.getElementById('sRows').innerHTML='';
+  _sRowCount=0;
+  if(sh.platforms&&sh.platforms.length) {
+    sh.platforms.forEach(p=>addSRow(p.platform,p.amount));
+  } else { addSRow('Uber',sh.earned||''); }
+  openModal('editShiftMod');
+}
+function deleteShiftEntry(id) {
+  if(!confirm('Delete this shift?')) return;
+  const idx=S.shifts.findIndex(s=>s.id===id); if(idx<0) return;
+  S.shifts.splice(idx,1);
+  req('/api/shifts/'+id,{method:'DELETE'});
+  saveLocal(); renderEarnings();
+}
 function saveManualShift() {
+  const editId=document.getElementById('editShiftId').value;
   const date=document.getElementById('sDate').value||_todayStr;
-  const start=document.getElementById('sStart').value;
-  const end=document.getElementById('sEnd').value;
-  const earned=parseFloat(document.getElementById('sEarned').value)||0;
+  const start=document.getElementById('sStart').value||'';
+  const end=document.getElementById('sEnd').value||'';
   const notes=document.getElementById('sNotes').value.trim();
-  if(!start||!end) return alert('Please set start and end time');
-  const [sh,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number);
-  const hours=Math.max(0,((eh*60+em)-(sh*60+sm))/60);
-  const shift={id:Date.now()+'',date,start,end,hours:Math.round(hours*10)/10,earned,perHour:hours>0?Math.round(earned/hours*100)/100:0,notes};
-  S.shifts.unshift(shift);if(S.shifts.length>50)S.shifts.pop();
-  req('/api/shifts',{method:'POST',body:shift});saveLocal();closeModal('editShiftMod');
-  ['sDate','sStart','sEnd','sEarned','sNotes'].forEach(id=>document.getElementById(id).value='');
-  renderEarnings();
+  const rows=document.getElementById('sRows').querySelectorAll('[id^=sRow]');
+  const platforms=[]; let totalEarned=0;
+  rows.forEach(row=>{
+    const rid=row.id.replace('sRow','');
+    const plat=document.getElementById(`sPlat${rid}`)?.value||'Other';
+    const amt=Math.max(0,parseFloat(document.getElementById(`sAmt${rid}`)?.value)||0);
+    if(amt>0){platforms.push({platform:plat,amount:amt});totalEarned+=amt;}
+  });
+  let hours=0;
+  if(start&&end){const[sh2,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number);hours=Math.max(0,((eh*60+em)-(sh2*60+sm))/60);}
+  if(editId) {
+    const idx=S.shifts.findIndex(s=>s.id===editId); if(idx<0) return;
+    const updated={...S.shifts[idx],date,start,end,hours:Math.round(hours*10)/10,earned:Math.round(totalEarned*100)/100,perHour:hours>0?Math.round(totalEarned/hours*100)/100:0,notes,platforms};
+    S.shifts[idx]=updated;
+    req('/api/shifts/'+editId,{method:'PATCH',body:updated});
+  } else {
+    const shift={id:Date.now()+'',date,start,end,hours:Math.round(hours*10)/10,earned:Math.round(totalEarned*100)/100,perHour:hours>0?Math.round(totalEarned/hours*100)/100:0,notes,platforms};
+    S.shifts.unshift(shift); if(S.shifts.length>200) S.shifts.pop();
+    req('/api/shifts',{method:'POST',body:shift});
+    platforms.forEach(async p=>{
+      const note='Shift'+(start&&end?' '+start+'–'+end:'');
+      const res=await req('/api/earnings',{method:'POST',body:{amount:p.amount,platform:p.platform,date,note,is_manual:true}});
+      if(res) S.earnings.push({...res,amount:p.amount,platform:p.platform,date,note,is_manual:true});
+    });
+  }
+  saveLocal(); closeModal('editShiftMod');
+  document.getElementById('sRows').innerHTML='';
+  renderEarnings(); renderHome();
 }
 function restoreShift() {
   if(!localStorage.getItem('pb_shift')) return;
