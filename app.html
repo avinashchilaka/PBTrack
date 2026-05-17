@@ -410,6 +410,7 @@ body{
         </div>
         <button class="av-drop-item" role="menuitem" onclick="avDropGo('more')"><span class="av-drop-icon">👤</span>Account &amp; Debts</button>
         <button class="av-drop-item" role="menuitem" onclick="avDropGo('settings')"><span class="av-drop-icon">⚙︎</span>Settings</button>
+        <button class="av-drop-item" role="menuitem" onclick="avDropGo('support')"><span class="av-drop-icon">✦</span>Smart Support</button>
         <button class="av-drop-item danger" role="menuitem" onclick="avDropGo('signout')"><span class="av-drop-icon">→</span>Sign Out</button>
       </div>
     </div>
@@ -735,7 +736,6 @@ body{
   <div class="modal" style="padding-bottom:env(safe-area-inset-bottom,12px)">
     <div class="mhandle"></div>
     <button class="btn btn-p" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openModal('quickMod')">⚡ Quick Log Earnings</button>
-    <button class="btn btn-g" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openAI()">✦ Ask AI</button>
     <button class="btn btn-g" style="width:100%" onclick="closeModal('fabSheet')">Cancel</button>
   </div>
 </div>
@@ -748,6 +748,21 @@ body{
 </style>
 
 <!-- ═══ MODALS ═══ -->
+
+<!-- Confirm Subscription -->
+<div class="ov" id="confirmSubMod">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <h2>Add as Recurring Bill?</h2>
+    <div class="msub" id="confirmSubDesc" style="margin-bottom:14px"></div>
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:14px">
+      <div id="confirmSubName" style="font-size:.9rem;font-weight:700;margin-bottom:3px"></div>
+      <div id="confirmSubMeta" style="font-size:.7rem;color:var(--text2)"></div>
+    </div>
+    <button class="btn btn-p" onclick="confirmAddSugBill()">✓ Yes, add as recurring bill</button>
+    <button class="btn btn-g" style="width:100%;margin-top:7px" onclick="closeModal('confirmSubMod')">✕ Not a recurring bill</button>
+  </div>
+</div>
 
 <!-- Quick Log -->
 <div class="ov" id="quickMod">
@@ -1946,10 +1961,38 @@ function showBillSuggestions() {
     {m:'tesla insurance',name:'Tesla Insurance',amount:212.96,due_day:5,category:'insurance'},
     {m:'mystro',name:'Mystro Driver',amount:18.99,due_day:12,category:'subscription'},
   ];
-  const suggested=PATS.filter(p=>
+  const patMatches=PATS.filter(p=>
     S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
     !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
   );
+  // Dynamic: merchants in 2+ distinct months not already in bills
+  const dynMap={};
+  S.expenses.forEach(e=>{
+    const desc=(e.description||'').trim();
+    const month=(e.date||'').slice(0,7);
+    if(!desc||!month) return;
+    const key=desc.toLowerCase();
+    if(!dynMap[key]) dynMap[key]={desc,months:new Set(),amounts:[],dates:[]};
+    dynMap[key].months.add(month);
+    dynMap[key].amounts.push(Math.abs(parseFloat(e.amount)||0));
+    dynMap[key].dates.push(e.date||'');
+  });
+  const SKIP_PATS=/uber|lyft|instapay|transfer|deposit|atm|zelle|venmo|cashapp|paypal|withdrawal|direct dep|payroll/i;
+  const dynMatches=Object.values(dynMap)
+    .filter(d=>
+      d.months.size>=2&&
+      !SKIP_PATS.test(d.desc)&&
+      !S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))&&
+      !patMatches.some(p=>d.desc.toLowerCase().includes(p.m))
+    )
+    .map(d=>{
+      const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
+      const lastDate=d.dates.sort().slice(-1)[0];
+      const due_day=lastDate?parseInt(lastDate.slice(8),10)||1:1;
+      return {name:d.desc,amount:parseFloat(avg.toFixed(2)),due_day,category:'subscription',_dynamic:true};
+    })
+    .slice(0,5);
+  const suggested=[...patMatches,...dynMatches];
   const card=document.getElementById('billSugCard');
   if(!card||!suggested.length){if(card)card.style.display='none';return;}
   window._sugBills=suggested;
@@ -1958,12 +2001,28 @@ function showBillSuggestions() {
   card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div style="font-size:.76rem;font-weight:700">🔍 Recurring charges detected</div><button class="bicon" onclick="this.parentElement.parentElement.style.display='none'">✕</button></div>
     ${suggested.map((b,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
       <div><div style="font-size:.8rem;font-weight:600">${b.name}</div><div style="font-size:.63rem;color:var(--text3)">${fmt(b.amount)}/mo · due ${b.due_day}th</div></div>
-      <button class="bicon" onclick="addSugBill(${i})">+ Add</button>
+      <button class="bicon" onclick="confirmSugBill(${i})">+ Add</button>
     </div>`).join('')}
     <button class="btn btn-p" style="margin-top:9px" onclick="addAllSug()">Add All (${suggested.length})</button>`;
 }
+function confirmSugBill(i) {
+  const b=window._sugBills[i]; if(!b) return;
+  window._pendingSugIdx=i;
+  const isDynamic=!!b._dynamic;
+  document.getElementById('confirmSubDesc').textContent=isDynamic
+    ? 'We spotted this charge in your bank feed across multiple months. Is it a recurring monthly bill?'
+    : 'This recurring charge was detected in your bank transactions. Confirm to add it to your Bills.';
+  document.getElementById('confirmSubName').textContent=b.name;
+  document.getElementById('confirmSubMeta').textContent=fmt(b.amount)+'/mo · due '+b.due_day+'th · '+b.category;
+  openModal('confirmSubMod');
+}
+async function confirmAddSugBill() {
+  closeModal('confirmSubMod');
+  await addSugBill(window._pendingSugIdx);
+}
 async function addSugBill(i) {
   const b=window._sugBills[i]; if(!b) return;
+  if(S.bills.some(x=>x.name.toLowerCase()===b.name.toLowerCase())) return;
   const res=await req('/api/bills',{method:'POST',body:{name:b.name,amount:b.amount,due_day:b.due_day,category:b.category}});
   if(res){S.bills.push({...b,id:res.id,paid:false});saveLocal();renderBills();}
 }
@@ -2001,6 +2060,7 @@ function avDropGo(action) {
   closeAvDrop();
   if(action==='more')    showPage('finance');
   else if(action==='settings') openSettings();
+  else if(action==='support')  openAI();
   else if(action==='signout')  logout();
 }
 // Close dropdown on outside tap
