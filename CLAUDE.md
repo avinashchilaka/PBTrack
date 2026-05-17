@@ -143,3 +143,87 @@ Theme (dark/light) is time-based: **day mode 6am–6pm**, night mode otherwise. 
 Hosted on Render (free tier — sleeps after 15 min inactivity, ~30-60s cold start). GitHub push triggers automatic redeploy. Build command: `npm install`. Start command: `node server.js`.
 
 The `supabase/functions/` directory contains legacy Deno edge functions (plaid-sync, splitwise-sync) that are **not used** — the active integrations are all in `server.js`.
+
+
+## Livvy Edit Protocol
+
+These rules are mandatory for all future work on Livvy.
+
+### Source of truth
+- Always inspect the current uploaded/checked-out Livvy files first before making any change.
+- Treat the latest working file set as the only source of truth.
+- Do not rely on prior chat memory when the actual file contents differ.
+- If multiple similar artifacts exist, identify the exact active deploy file set before editing.
+
+### Scope control
+- This is an existing app, not a rewrite.
+- One chat = one task.
+- Do not batch unrelated fixes unless explicitly requested.
+- Preserve all existing working features unless the requested task requires a targeted change.
+- Do not do broad refactors, random cleanup, renames, or cosmetic drift.
+
+### Architecture guardrails
+- Frontend is vanilla JavaScript with plain script tags and no bundler.
+- Backend is Express.
+- Database is Supabase.
+- supabase/functions/ is legacy/unused unless explicitly reactivated.
+- Follow the existing global state and API patterns instead of inventing a new architecture.
+
+### Critical financial invariants
+- earnings[] is manual-only.
+- expenses[] is Plaid-only.
+- Never merge, auto-convert, or cross-populate these arrays unless explicitly requested.
+- Preserve the daily target formula and its current logic.
+- Preserve the rent double-counting guard.
+- Preserve transfer exclusion behavior anywhere spending totals, budgets, targets, insights, or charts are derived.
+- Preserve merchant-rule behavior from UI to localStorage to DB to Plaid sync.
+
+### Change strategy
+- Prefer the smallest safe patch.
+- For risky areas, inspect first, explain the exact boundary, then patch only what is necessary.
+- If a requested change expands into a larger dependency chain, stop and report the minimum safe boundary before proceeding.
+- When extracting modules, move code verbatim where possible and avoid behavior changes during extraction.
+
+### Verification requirements
+Before claiming a task is complete, verify the exact affected paths and logic.
+Always check the relevant functions, conditions, UI path, and dependent calculations.
+For any finance-impacting change, explicitly verify:
+- daily target inputs and totals
+- transfer exclusions
+- overdue bill logic
+- merchant-rule persistence path
+- bank-linked vs non-bank-linked states where relevant
+- AI endpoint call path where relevant
+
+### Preferred response format
+Return output in concise, copy-paste-friendly form.
+Do not paste full code unless explicitly asked.
+
+Use exactly this format unless I request another one:
+
+STATUS
+Result:
+Gaps found:
+Patched:
+Remaining risks:
+
+FILES CHANGED
+path — short change summary
+
+FILES TO DOWNLOAD/UPLOAD
+exact final file list
+
+PROOF
+exact functions/files/conditions checked
+
+COPY-PASTE RELEASE NOTE
+short bullet
+short bullet
+short bullet
+
+### Safety rules
+- If something is already correct, do not rewrite it.
+- If verification shows no real issue, report that cleanly and make no code changes.
+- If packaging/deploy artifacts are inconsistent, fix only the exact packaging issue.
+- Keep all changes rollback-safe and cumulative.
+- Maintain Livvy’s current mobile-first design language: clean, minimal, high-contrast, practical.
