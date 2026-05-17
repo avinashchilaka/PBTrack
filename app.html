@@ -832,13 +832,21 @@ body{
   <div class="modal">
     <div class="mhandle"></div>
     <h2>End Shift</h2>
-    <div class="msub" id="endShiftSub">Duration · Earnings this shift</div>
-    <div class="iwrap" style="margin-top:11px">
-      <label>Total Earnings This Shift ($)</label>
-      <input type="number" id="endShiftEarned" placeholder="0.00" step="0.01" min="0" style="font-size:1.1rem;font-weight:700">
+    <div class="msub" id="endShiftSub">Duration · tap Save when ready</div>
+
+    <div style="display:flex;gap:8px;margin:10px 0 14px;font-size:.72rem;color:var(--text3)">
+      <span>🕐 <span id="esStartTime">—</span></span>
+      <span style="opacity:.4">→</span>
+      <span>🕐 <span id="esEndTime">—</span></span>
+      <span style="margin-left:auto;font-weight:700;color:var(--text)" id="esDuration">0h 0m</span>
     </div>
-    <div id="endShiftNote" style="font-size:.65rem;color:var(--text3);margin:-6px 0 12px;line-height:1.5"></div>
-    <button class="btn btn-p" onclick="confirmEndShift()">✅ Save Shift</button>
+
+    <label style="font-size:.7rem;font-weight:700;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:7px">Earnings by Platform</label>
+    <div id="esRows"></div>
+    <button onclick="addEsRow()" style="width:100%;background:none;border:1.5px dashed var(--border2);border-radius:var(--r);padding:8px;font-size:.76rem;font-weight:600;color:var(--text3);cursor:pointer;margin-top:5px">+ Add Platform</button>
+
+    <div id="endShiftNote" style="font-size:.65rem;color:var(--text3);margin:10px 0 4px;line-height:1.5"></div>
+    <button class="btn btn-p" style="margin-top:10px" onclick="confirmEndShift()">✅ Save Shift</button>
     <button class="btn btn-g" style="width:100%;margin-top:6px" onclick="cancelEndShift()">Keep Driving</button>
   </div>
 </div>
@@ -2397,37 +2405,116 @@ function endShift() {
   const el=Date.now()-start, hours=el/3600000;
   const h=Math.floor(hours),m=Math.floor((hours-h)*60);
   clearInterval(_shiftInterval);_shiftInterval=null;
+  window._endShiftStart=start;
+  window._endShiftEnd=Date.now();
+
+  // Times
+  const startDate=new Date(start), endDate=new Date(window._endShiftEnd);
+  const fmt2=d=>d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  document.getElementById('esStartTime').textContent=fmt2(startDate);
+  document.getElementById('esEndTime').textContent=fmt2(endDate);
+  document.getElementById('esDuration').textContent=`${h}h ${m}m`;
+  document.getElementById('endShiftSub').textContent=`${h}h ${m}m shift · tap Save when ready`;
+
+  // Pre-fill earnings rows from any earnings logged during shift
   const startE=parseFloat(localStorage.getItem('pb_shift_e')||0);
   const autoEarned=Math.max(0,Math.round((todayEarnings()-startE)*100)/100);
-  document.getElementById('endShiftSub').textContent=`${h}h ${m}m shift · tap Save when ready`;
-  const inp=document.getElementById('endShiftEarned');
-  inp.value=autoEarned>0?autoEarned.toFixed(2):'';
-  inp.placeholder='0.00';
+
+  // Build platform rows — default one Uber row pre-filled if auto earnings exist
+  const esRows=document.getElementById('esRows');
+  esRows.innerHTML='';
+  addEsRow('Uber', autoEarned>0?autoEarned.toFixed(2):'');
+
   document.getElementById('endShiftNote').textContent=autoEarned>0
-    ?`Auto-calculated from earnings logged during this shift (${fmt(autoEarned)}). Edit if needed.`
-    :'No earnings logged during this shift yet — enter your total manually.';
-  window._endShiftStart=start;
+    ?`Auto-detected ${fmt(autoEarned)} from earnings logged during shift. Edit or add platforms below.`
+    :'No earnings logged yet — enter amounts per platform below.';
+
   openModal('endShiftMod');
-  setTimeout(()=>inp.focus(),250);
 }
+
+let _esRowCount=0;
+function addEsRow(platform='Uber', amount='') {
+  _esRowCount++;
+  const id=_esRowCount;
+  const row=document.createElement('div');
+  row.id=`esRow${id}`;
+  row.style.cssText='display:flex;gap:7px;align-items:center;margin-bottom:7px';
+  row.innerHTML=`
+    <select id="esPlat${id}" style="flex:1.2;background:var(--s1);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'Inter',sans-serif;font-size:.8rem;padding:8px 10px;outline:none">
+      <option value="Uber"${platform==='Uber'?' selected':''}>🚗 Uber</option>
+      <option value="Lyft"${platform==='Lyft'?' selected':''}>💜 Lyft</option>
+      <option value="Cash"${platform==='Cash'?' selected':''}>💵 Cash</option>
+      <option value="HopSkipDrive"${platform==='HopSkipDrive'?' selected':''}>🚐 HopSkipDrive</option>
+      <option value="Instacart"${platform==='Instacart'?' selected':''}>🛒 Instacart</option>
+      <option value="DoorDash"${platform==='DoorDash'?' selected':''}>🍔 DoorDash</option>
+      <option value="Other"${platform==='Other'?' selected':''}>💰 Other</option>
+    </select>
+    <input type="number" id="esAmt${id}" value="${amount}" placeholder="0.00" step="0.01" min="0"
+      style="flex:1;background:var(--s1);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;padding:8px 10px;outline:none">
+    <button onclick="document.getElementById('esRow${id}').remove()" style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0">×</button>`;
+  document.getElementById('esRows').appendChild(row);
+  document.getElementById(`esAmt${id}`).focus();
+}
+
 function confirmEndShift() {
   const start=window._endShiftStart||parseInt(localStorage.getItem('pb_shift')||0);
-  const el=Date.now()-start, hours=el/3600000;
+  const end=window._endShiftEnd||Date.now();
+  const el=end-start, hours=el/3600000;
   const h=Math.floor(hours),m=Math.floor((hours-h)*60);
-  const earned=Math.max(0,parseFloat(document.getElementById('endShiftEarned').value)||0);
+  const startDate=new Date(start), endDate=new Date(end);
+  const timeStr=d=>d.toTimeString().slice(0,5);
+
+  // Collect all platform rows
+  const rows=document.getElementById('esRows').querySelectorAll('[id^=esRow]');
+  const platforms=[];
+  let totalEarned=0;
+  rows.forEach(row=>{
+    const rowId=row.id.replace('esRow','');
+    const plat=document.getElementById(`esPlat${rowId}`)?.value||'Other';
+    const amt=Math.max(0,parseFloat(document.getElementById(`esAmt${rowId}`)?.value)||0);
+    if(amt>0) { platforms.push({platform:plat,amount:amt}); totalEarned+=amt; }
+  });
+
   closeModal('endShiftMod');
   refreshDate();
-  localStorage.removeItem('pb_shift');localStorage.removeItem('pb_shift_e');
-  const shift={id:Date.now()+'',date:_todayStr,start:new Date(start).toTimeString().slice(0,5),end:new Date().toTimeString().slice(0,5),hours:Math.round(hours*10)/10,earned:Math.round(earned*100)/100,perHour:hours>.05?Math.round(earned/hours*100)/100:0};
-  S.shifts.unshift(shift);if(S.shifts.length>50)S.shifts.pop();
-  req('/api/shifts',{method:'POST',body:shift});saveLocal();
+  localStorage.removeItem('pb_shift');
+  localStorage.removeItem('pb_shift_e');
+
+  // Save shift record with full detail for AI analysis
+  const shift={
+    id:Date.now()+'',
+    date:_todayStr,
+    start:timeStr(startDate),
+    end:timeStr(endDate),
+    start_ts:start,
+    end_ts:end,
+    hours:Math.round(hours*10)/10,
+    earned:Math.round(totalEarned*100)/100,
+    perHour:hours>.05?Math.round(totalEarned/hours*100)/100:0,
+    platforms // [{platform, amount}] — full breakdown for AI
+  };
+  S.shifts.unshift(shift); if(S.shifts.length>200) S.shifts.pop();
+  req('/api/shifts',{method:'POST',body:shift});
+
+  // Post each platform as a separate earnings record → appears in earnings directly
+  platforms.forEach(async p=>{
+    const res=await req('/api/earnings',{method:'POST',body:{
+      amount:p.amount, platform:p.platform, date:_todayStr,
+      note:`Shift ${timeStr(startDate)}–${timeStr(endDate)}`, is_manual:true
+    }});
+    if(res) S.earnings.push({...res,amount:p.amount,platform:p.platform,date:_todayStr,note:`Shift ${timeStr(startDate)}–${timeStr(endDate)}`,is_manual:true});
+  });
+
+  saveLocal();
   const btn=document.getElementById('shiftBtn');
   if(btn){btn.textContent='🚗 Start Shift';btn.style.background='';}
   document.getElementById('shiftStatLine').style.display='none';
   document.getElementById('shiftDisp').textContent='00:00:00';
   document.getElementById('shiftCard').style.background='';
-  flash('logMsg',`✅ ${h}h ${m}m · ${fmt(earned)} · ${fmt(shift.perHour)}/hr`,'var(--green)');
-  renderEarnings();renderHome();
+
+  const platSummary=platforms.length?platforms.map(p=>`${p.platform} ${fmt(p.amount)}`).join(' + '):'No earnings';
+  flash('logMsg',`✅ ${h}h ${m}m · ${fmt(totalEarned)} · ${platSummary}`,'var(--green)');
+  renderEarnings(); renderHome();
 }
 function cancelEndShift() {
   closeModal('endShiftMod');
