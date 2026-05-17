@@ -9,7 +9,7 @@ function calcDailyTarget() {
 
   // Today's earnings (manual only) and spending (Plaid only)
   const todayEarned = S.earnings.filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0);
-  const todaySpent  = S.expenses.filter(e=>e.date===today&&!e.is_income).reduce((s,e)=>s+e.amount,0);
+  const todaySpent  = S.expenses.filter(e=>e.date===today&&!e.is_income&&e.category!=='transfers').reduce((s,e)=>s+e.amount,0);
 
   // 1. Overdue bills — past due date, unpaid, not skipped
   const overdueBills = S.bills
@@ -131,11 +131,11 @@ function hasRentInBillsCheck() {
 // CALCULATIONS
 // ═══════════════════════════════════════════════════════
 function todayEarnings() { refreshDate(); return S.earnings.filter(e=>e.date===_todayStr).reduce((s,e)=>s+e.amount,0); }
-function todaySpending()  { refreshDate(); return S.expenses.filter(e=>e.date===_todayStr&&!e.is_income).reduce((s,e)=>s+e.amount,0); }
+function todaySpending()  { refreshDate(); return S.expenses.filter(e=>e.date===_todayStr&&!e.is_income&&e.category!=='transfers').reduce((s,e)=>s+e.amount,0); }
 function weekEarnings() {
   const now=new Date(), mon=new Date(now);
   mon.setDate(now.getDate()-((now.getDay()+6)%7)); mon.setHours(0,0,0,0);
   return S.earnings.filter(e=>new Date(e.date+'T12:00:00')>=mon).reduce((s,e)=>s+e.amount,0);
 }
 function monthEarnings() { return S.earnings.filter(e=>e.date.startsWith(_monthStr)).reduce((s,e)=>s+e.amount,0); }
-function monthSpending()  { return S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income).reduce((s,e)=>s+e.amount,0); }
+function monthSpending()  { return S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income&&e.category!=='transfers').reduce((s,e)=>s+e.amount,0); }

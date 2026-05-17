@@ -5,10 +5,10 @@ async function requestAIBudget() {
   const card=document.getElementById('aiBudCard'); card.style.display='block';
   document.getElementById('aiBudRows').innerHTML='<div class="lrow"><div class="spinner"></div> Analyzing your transactions...</div>';
   const mFreq={};
-  S.expenses.forEach(e=>{const m=(e.description||'').toLowerCase().trim().substring(0,25);if(!mFreq[m]){mFreq[m]={count:0,total:0,cat:e.category||'other'};}mFreq[m].count++;mFreq[m].total+=e.amount;});
+  S.expenses.filter(e=>!e.is_income&&e.category!=='transfers').forEach(e=>{const m=(e.description||'').toLowerCase().trim().substring(0,25);if(!mFreq[m]){mFreq[m]={count:0,total:0,cat:e.category||'other'};}mFreq[m].count++;mFreq[m].total+=e.amount;});
   const topM=Object.entries(mFreq).sort((a,b)=>b[1].total-a[1].total).slice(0,10).map(([name,{count,total,cat}])=>({name,count,total:Math.round(total),cat}));
   const cTotals={};const threeM=new Date();threeM.setMonth(threeM.getMonth()-3);
-  S.expenses.filter(e=>new Date(e.date+'T12:00:00')>=threeM&&!e.is_income).forEach(e=>{const c=e.category||'other';cTotals[c]=(cTotals[c]||0)+e.amount;});
+  S.expenses.filter(e=>new Date(e.date+'T12:00:00')>=threeM&&!e.is_income&&e.category!=='transfers').forEach(e=>{const c=e.category||'other';cTotals[c]=(cTotals[c]||0)+e.amount;});
   const cMonthly=Object.fromEntries(Object.entries(cTotals).map(([c,t])=>[c,Math.round(t/3)]));
   const context=`Gig driver San Diego. 3-month category averages: ${JSON.stringify(cMonthly)}. Top merchants: ${JSON.stringify(topM)}. Monthly goal: $${S.settings.monthly_goal||9500}. Suggest smart monthly budget limits and flag high-spend merchants. Return ONLY JSON: {"budgets":{"food":N,"transportation":N,"shopping":N,"entertainment":N,"utilities":N,"health":N,"other":N},"flags":[{"merchant":"name","avg_monthly":N,"insight":"why this matters"}]}`;
   try {

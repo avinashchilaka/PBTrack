@@ -450,7 +450,7 @@ function drawDonut() {
   const canvas=document.getElementById('donutC'); if(!canvas) return;
   const ctx=canvas.getContext('2d');
   const cats={};
-  S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income).forEach(e=>{
+  S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income&&e.category!=='transfers').forEach(e=>{
     const c=e.category||'other'; cats[c]=(cats[c]||0)+e.amount;
   });
   const entries=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -485,7 +485,7 @@ function drawFlow() {
   for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);
     _flowDays.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));}
   const earned=_flowDays.map(d=>S.earnings.filter(e=>e.date===d).reduce((s,e)=>s+e.amount,0));
-  const spent =_flowDays.map(d=>S.expenses.filter(e=>e.date===d&&!e.is_income).reduce((s,e)=>s+e.amount,0));
+  const spent =_flowDays.map(d=>S.expenses.filter(e=>e.date===d&&!e.is_income&&e.category!=='transfers').reduce((s,e)=>s+e.amount,0));
   const maxV=Math.max(...earned,...spent,1);
   const pL=8,pR=8,pT=7,pB=20,cW=W-pL-pR,cH=H-pT-pB;
   const bW=(cW/_flowDays.length)*.33,gap=cW/_flowDays.length;
