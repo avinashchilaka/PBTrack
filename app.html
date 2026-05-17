@@ -153,6 +153,10 @@ body{
 .fab:active{transform:scale(.92);}
 .fab-ai{background:var(--text);color:var(--bg);font-size:.95rem;font-weight:700;}
 .fab-log{background:var(--green);color:#fff;font-size:1.3rem;}
+.fab-livvy{width:48px;height:48px;border-radius:13px;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 20px var(--shadow);transition:transform .15s;background:var(--text);color:var(--bg);gap:1px;}
+.fab-livvy:active{transform:scale(.91);}
+.fab-livvy-l{font-size:1.05rem;font-weight:900;font-style:italic;line-height:1;letter-spacing:-.5px;}
+.fab-livvy-dot{font-size:.45rem;font-weight:800;opacity:.6;letter-spacing:.5px;text-transform:uppercase;}
 
 /* ── CARDS ── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:10px;transition:background .3s,border-color .3s;}
@@ -659,7 +663,7 @@ body{
       </button>
       <div style="display:flex;gap:5px">
         <button class="bicon" onclick="openModal('editBudMod')">Edit</button>
-        <button class="bicon" onclick="requestAIBudget()">AI ✨</button>
+        <button class="bicon" onclick="requestAIBudget()">✨</button>
       </div>
     </div>
     <div id="budBars" style="display:none"><div class="empty">Set budgets to track limits</div></div>
@@ -722,13 +726,16 @@ body{
 <nav class="fnav">
   <button class="nb active" onclick="showPage('home')" id="nav-home"><span class="nb-icon">⌂</span><span class="nb-lbl">Home</span></button>
   <button class="nb" onclick="showPage('earnings')" id="nav-earnings"><span class="nb-icon">⚡</span><span class="nb-lbl">Earnings</span></button>
-  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Spend</span></button>
-  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">☰</span><span class="nb-lbl">Finance</span></button>
+  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Activity</span></button>
+  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">◎</span><span class="nb-lbl">Finance</span></button>
 </nav>
 
 <!-- ═══ SINGLE FAB ═══ -->
 <div class="fabs">
-  <button class="fab fab-log" onclick="openModal('fabSheet')" title="Actions" id="mainFab">+</button>
+  <button class="fab-livvy" onclick="openModal('fabSheet')" title="Actions" id="mainFab">
+    <span class="fab-livvy-l">L.</span>
+    <span class="fab-livvy-dot">livvy</span>
+  </button>
 </div>
 
 <!-- FAB action sheet -->
@@ -1288,7 +1295,12 @@ function showPage(id) {
   if(nb) nb.classList.add('active');
   if(id==='home')     renderHome();
   if(id==='earnings') renderEarnings();
-  if(id==='spend')    renderSpend();
+  if(id==='spend') {
+    _catFilter=null;
+    renderSpend();
+    const allTab=document.querySelector('#page-spend .istab:first-child');
+    setIsMode('all',allTab);
+  }
   if(id==='finance')  renderFinance();
   window.scrollTo(0,0);
 }
@@ -1898,44 +1910,85 @@ function renderTxnList() {
 // ═══════════════════════════════════════════════════════
 // TRANSACTION DETAIL + MERCHANT RULES
 // ═══════════════════════════════════════════════════════
+// CATEGORY / SUBCATEGORY TAXONOMY
+const CAT_TREE = {
+  'Auto & Transportation': ['EV Charging','Gas / Fuel','Car Maintenance & Repairs','Car Insurance','Rideshare Commutes','Public Transit','Auto Loan / Finance Payment','Registration','Tolls & DMV Fees'],
+  'Housing': ['Rent','Groceries','Renters Insurance','Home Maintenance','Supplies & Repairs'],
+  'Utilities': ['Electric Bill','Water & Sewer Bill','Gas Bill','Cellular / Mobile Data Plan','Internet Service Provider (ISP)','Trash & Recycling Collection'],
+  'Food & Dining': ['Dining Out / Restaurants','Fast Food','Coffee Shops & Cafes','Food Delivery / Takeout Apps'],
+  'Subscriptions': ['Work Software / Gig Driver Helper Apps','Streaming Services','Premium Memberships / Cloud Infrastructure'],
+  'Financial, Loans & Advances': ['Cash Advances','Line of Credit / Installment Repayments','Credit Card Account Payments','Personal Loan Principal Repayment'],
+  'Shopping': ['Clothing & Apparel','Electronics & Work Tech Gadgets','Online Retail / Marketplace Purchases','Personal Care & Toiletries'],
+  'Entertainment & Lifestyle': ['Movies','Concerts & Events','Bars & Nightlife','Gym & Fitness Memberships','Travel','Flights & Lodging'],
+  'Health & Medical': ['Primary / Urgent Care Copays','Pharmacy & Medications','Health / Dental Insurance Premiums'],
+  'Other / Miscellaneous': ['Uncategorized Cash Outflows','Business Expense One-Offs','Reimbursements / Adjustments']
+};
+const CAT_KEYS = Object.keys(CAT_TREE);
+
 function getMKey(desc) { return (desc||'').toLowerCase().trim().replace(/\s+/g,' ').substring(0,30); }
+
+function buildCatSelHTML(selParent, selSub) {
+  const parentOpts = CAT_KEYS.map(p =>
+    `<option value="${p}"${p===selParent?' selected':''}>${p}</option>`
+  ).join('');
+  const subs = selParent && CAT_TREE[selParent] ? CAT_TREE[selParent] : [];
+  const subOpts = subs.map(s =>
+    `<option value="${s}"${s===selSub?' selected':''}>${s}</option>`
+  ).join('');
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Category</span><select id="txnCatSel" onchange="onParentCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.74rem;padding:4px 8px;outline:none;max-width:170px"><option value="">— Select —</option>${parentOpts}</select></div><div id="subCatRow" style="display:${subs.length?'flex':'none'};justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Subcategory</span><select id="txnSubSel" onchange="onSubCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.74rem;padding:4px 8px;outline:none;max-width:170px"><option value="">— Select —</option>${subOpts}</select></div>`;
+}
+
+function onParentCatChange() {
+  const parent = document.getElementById('txnCatSel').value;
+  const subs = parent && CAT_TREE[parent] ? CAT_TREE[parent] : [];
+  const row = document.getElementById('subCatRow');
+  const subSel = document.getElementById('txnSubSel');
+  if(subs.length) {
+    subSel.innerHTML = '<option value="">— Select —</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+    row.style.display='flex';
+  } else { row.style.display='none'; }
+  _pendingRule=null;
+  document.getElementById('txnRuleBox').style.display='none';
+}
+
+function onSubCatChange() {
+  const t=S.expenses[_pendingTxn]; if(!t) return;
+  const parent=document.getElementById('txnCatSel').value;
+  const sub=document.getElementById('txnSubSel').value;
+  if(!parent||!sub) return;
+  _pendingRule={key:getMKey(t.description),cat:parent,sub,merchant:t.description};
+  document.getElementById('txnRuleText').textContent=`Apply "${parent} › ${sub}" to ALL transactions from "${t.description}"?`;
+  document.getElementById('txnRuleBox').style.display='block';
+}
+
+function onCatChange() { onParentCatChange(); } // legacy alias
 
 function openTxnDetail(idx) {
   const t=S.expenses[idx]; if(!t) return;
   _pendingTxn=idx; _pendingRule=null;
-  const cats=['food','transportation','shopping','entertainment','utilities','health','housing','subscription','debt','transfers','income','other'];
   document.getElementById('txnModName').textContent=t.label||t.description||'Transaction';
+  const selParent=t.category||'';
+  const selSub=t.subcategory||'';
   document.getElementById('txnModBody').innerHTML=`
     <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Amount</span><span style="font-weight:700;color:${t.is_income?'var(--green)':'var(--red)'}">${t.is_income?'+':'-'}${fmt(t.amount)}</span></div>
     <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Date</span><span style="font-weight:600">${t.date}</span></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Category</span>
-      <select id="txnCatSel" onchange="onCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.76rem;padding:4px 8px;outline:none">
-        ${cats.map(c=>`<option value="${c}"${(t.category||'other')===c?' selected':''}>${ttc(c)}</option>`).join('')}
-      </select>
-    </div>
+    ${buildCatSelHTML(selParent,selSub)}
     ${t.institution?`<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.78rem"><span style="color:var(--text3)">Account</span><span>🏦 ${t.institution}</span></div>`:''}`;
   document.getElementById('txnRuleBox').style.display='none';
   openModal('txnMod');
 }
 
-function onCatChange() {
-  const t=S.expenses[_pendingTxn]; if(!t) return;
-  const cat=document.getElementById('txnCatSel').value;
-  _pendingRule={key:getMKey(t.description),cat,merchant:t.description};
-  document.getElementById('txnRuleText').textContent=`Apply "${ttc(cat)}" to ALL past, present & future transactions from "${t.description}"?`;
-  document.getElementById('txnRuleBox').style.display='block';
-}
-
 function applyRule(applyAll) {
   const t=S.expenses[_pendingTxn]; if(!t||!_pendingRule) return;
-  const{key,cat}=_pendingRule;
+  const{key,cat,sub}=_pendingRule;
   S.expenses[_pendingTxn].category=cat;
+  S.expenses[_pendingTxn].subcategory=sub||'';
   if(applyAll) {
-    S.rules[key]=cat;
-    S.expenses.forEach((e,i)=>{if(getMKey(e.description)===key)S.expenses[i].category=cat;});
+    S.rules[key]={cat,sub:sub||''};
+    S.expenses.forEach((e,i)=>{ if(getMKey(e.description)===key){ S.expenses[i].category=cat; S.expenses[i].subcategory=sub||''; } });
     req('/api/rules',{method:'POST',body:S.rules});
   } else {
-    req(`/api/transactions/${t.plaid_id||t.id}/category`,{method:'PATCH',body:{category:cat}});
+    req(`/api/transactions/${t.plaid_id||t.id}/category`,{method:'PATCH',body:{category:cat,subcategory:sub||''}});
   }
   saveLocal(); closeModal('txnMod'); renderSpend(); renderHome();
 }
@@ -2045,26 +2098,36 @@ function showBillSuggestions() {
     S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
     !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
   );
-  // Dynamic: merchants in 2+ distinct months not already in bills
+  // Dynamic: merchants appearing in 2+ distinct calendar months.
+  // STRICT: only outgoing merchant charges (amount > 0, not income, not transfer).
+  // Excludes: tips, trips, cashouts, unloads, sweeps, deposits, refunds, rewards,
+  // interest, wallet events, instant pay, varo, uber/lyft cash, save-your-change.
+  const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
   const dynMap={};
   S.expenses.forEach(e=>{
+    if(e.is_income||e.amount<1||isTransfer(e)) return;
+    if(e.category==='transfers'||e.category==='income') return;
     const desc=(e.description||'').trim();
     const month=(e.date||'').slice(0,7);
     if(!desc||!month) return;
     const key=desc.toLowerCase();
+    if(BILL_SKIP.test(key)) return;
     if(!dynMap[key]) dynMap[key]={desc,months:new Set(),amounts:[],dates:[]};
     dynMap[key].months.add(month);
-    dynMap[key].amounts.push(Math.abs(parseFloat(e.amount)||0));
+    dynMap[key].amounts.push(parseFloat(e.amount)||0);
     dynMap[key].dates.push(e.date||'');
   });
-  const SKIP_PATS=/uber|lyft|instapay|transfer|deposit|atm|zelle|venmo|cashapp|paypal|withdrawal|direct dep|payroll/i;
   const dynMatches=Object.values(dynMap)
-    .filter(d=>
-      d.months.size>=2&&
-      !SKIP_PATS.test(d.desc)&&
-      !S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))&&
-      !patMatches.some(p=>d.desc.toLowerCase().includes(p.m))
-    )
+    .filter(d=>{
+      if(d.months.size<2) return false;
+      const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
+      if(avg<1||avg>2500) return false;
+      const stddev=Math.sqrt(d.amounts.reduce((s,a)=>s+Math.pow(a-avg,2),0)/d.amounts.length);
+      if(avg>0&&(stddev/avg)>0.3) return false;
+      if(S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))) return false;
+      if(patMatches.some(p=>d.desc.toLowerCase().includes(p.m))) return false;
+      return true;
+    })
     .map(d=>{
       const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
       const lastDate=d.dates.sort().slice(-1)[0];
