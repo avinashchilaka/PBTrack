@@ -147,7 +147,7 @@ body{
 .nb-lbl{display:none;}
 .nb.active .nb-lbl{display:block;}
 
-/* ── DUAL FABS ── */
+/* ── FAB ── */
 .fabs{position:fixed;bottom:82px;right:14px;z-index:90;display:flex;flex-direction:column;align-items:center;gap:8px;}
 .fab{width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px var(--shadow);transition:transform .15s;}
 .fab:active{transform:scale(.92);}
@@ -401,7 +401,6 @@ body{
   <div class="logo">Livvy</div>
   <div class="topbar-r">
     <div class="sync-pill"><div class="sync-dot" id="syncDot"></div><span id="syncLbl">Live</span></div>
-    <button class="gear-btn" id="gearBtn" onclick="openSettings()" aria-label="Settings" title="Settings">⚙︎</button>
     <div class="av-wrap">
       <button class="avatar" id="avatarBtn" onclick="toggleAvDrop()" aria-label="Account" aria-expanded="false" aria-haspopup="true">?</button>
       <div class="av-drop" id="avDrop" role="menu">
@@ -510,9 +509,9 @@ body{
     <div style="display:flex;align-items:center;gap:8px">
       <div class="stitle">Latest Transactions</div>
       <div style="display:flex;background:var(--s1);border-radius:var(--r-pill);padding:2px;gap:1px">
-        <button id="homeTxnSpend" onclick="setHomeTxnMode('spending')" style="font-size:.56rem;font-weight:700;padding:3px 7px;border-radius:var(--r-pill);border:none;background:var(--text);color:var(--bg);cursor:pointer;font-family:'Inter',sans-serif">Spend</button>
-        <button id="homeTxnIncome" onclick="setHomeTxnMode('income')" style="font-size:.56rem;font-weight:600;padding:3px 7px;border-radius:var(--r-pill);border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:'Inter',sans-serif">Income</button>
         <button id="homeTxnAll" onclick="setHomeTxnMode('all')" style="font-size:.56rem;font-weight:600;padding:3px 7px;border-radius:var(--r-pill);border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:'Inter',sans-serif">All</button>
+        <button id="homeTxnIncome" onclick="setHomeTxnMode('income')" style="font-size:.56rem;font-weight:600;padding:3px 7px;border-radius:var(--r-pill);border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:'Inter',sans-serif">Income</button>
+        <button id="homeTxnSpend" onclick="setHomeTxnMode('spending')" style="font-size:.56rem;font-weight:700;padding:3px 7px;border-radius:var(--r-pill);border:none;background:var(--text);color:var(--bg);cursor:pointer;font-family:'Inter',sans-serif">Spend</button>
       </div>
     </div>
     <div style="position:relative">
@@ -598,9 +597,9 @@ body{
 <!-- ═══ SPEND ═══ -->
 <div class="page" id="page-spend">
   <div class="istabs">
-    <button class="istab active" onclick="setIsMode('spending',this)">Spending</button>
-    <button class="istab" onclick="setIsMode('income',this)">Income</button>
     <button class="istab" onclick="setIsMode('all',this)">All</button>
+    <button class="istab" onclick="setIsMode('income',this)">Income</button>
+    <button class="istab active" onclick="setIsMode('spending',this)">Spending</button>
   </div>
 
   <div class="sgrid">
@@ -611,7 +610,6 @@ body{
   <div class="card" style="display:flex;align-items:center;justify-content:space-between">
     <div><div style="font-size:.83rem;font-weight:700" id="plaidStatus">Connect Bank</div><div style="font-size:.65rem;color:var(--text3);margin-top:1px">Link via Plaid for auto-sync</div></div>
     <div style="display:flex;gap:5px">
-      <button class="bicon" id="plaidResetBtn" onclick="fullResync()" style="display:none" title="Re-fetch all transactions including deposits">↺ Full Sync</button>
       <button class="bicon" id="plaidBtn" onclick="openPlaidLink()">🏦 Connect</button>
     </div>
   </div>
@@ -654,13 +652,16 @@ body{
   <!-- Budget bars -->
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
-      <div class="clbl" style="margin:0">Budget Status</div>
+      <button onclick="toggleBudBars()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:5px;padding:0;font-family:'Inter',sans-serif">
+        <div class="clbl" style="margin:0">Budget Status</div>
+        <span id="budChevron" style="font-size:.65rem;color:var(--text3)">▶</span>
+      </button>
       <div style="display:flex;gap:5px">
         <button class="bicon" onclick="openModal('editBudMod')">Edit</button>
         <button class="bicon" onclick="requestAIBudget()">AI ✨</button>
       </div>
     </div>
-    <div id="budBars"><div class="empty">Set budgets to track limits</div></div>
+    <div id="budBars" style="display:none"><div class="empty">Set budgets to track limits</div></div>
   </div>
 
   <div class="chips" id="catChips"></div>
@@ -670,48 +671,50 @@ body{
 <!-- ═══ FINANCE (Bills · Accounts · Debts) ═══ -->
 <div class="page" id="page-finance">
 
-  <!-- Bills -->
-  <div class="sgrid">
-    <div class="sbox"><div class="sval" id="billTotal" style="color:var(--red)">$0</div><div class="slbl">Monthly Total</div></div>
-    <div class="sbox"><div class="sval" id="billUnpaid" style="color:var(--gold)">$0</div><div class="slbl">Unpaid</div></div>
+  <!-- Finance tab bar -->
+  <div class="istabs" style="margin-bottom:13px">
+    <button class="ftab istab active" onclick="showFinanceTab('bills',this)">Bills</button>
+    <button class="ftab istab" onclick="showFinanceTab('accounts',this)">Accounts</button>
+    <button class="ftab istab" onclick="showFinanceTab('investing',this)">Investing</button>
   </div>
-  <div id="billSugCard" style="display:none" class="card"></div>
-  <div class="shdr">
-    <div class="stitle">Bills &amp; Payments</div>
-    <div style="display:flex;gap:5px;flex-shrink:0">
-      <button class="bicon" style="white-space:nowrap" onclick="openModal('addBillMod')">+ Recurring</button>
-      <button class="bicon" style="white-space:nowrap" onclick="openModal('addOTMod')">+ One-Time</button>
+
+  <!-- Bills panel -->
+  <div id="ftab-bills">
+    <div class="sgrid">
+      <div class="sbox"><div class="sval" id="billTotal" style="color:var(--red)">$0</div><div class="slbl">Monthly Total</div></div>
+      <div class="sbox"><div class="sval" id="billUnpaid" style="color:var(--gold)">$0</div><div class="slbl">Unpaid</div></div>
+    </div>
+    <div id="billSugCard" style="display:none" class="card"></div>
+    <div class="shdr" style="flex-wrap:wrap;gap:6px 8px">
+      <div class="stitle" style="flex:1;min-width:120px">Bills &amp; Payments</div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="bicon" style="white-space:nowrap" onclick="openModal('addBillMod')">+ Recurring</button>
+        <button class="bicon" style="white-space:nowrap" onclick="openModal('addOTMod')">+ One-Time</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0 13px" id="billsList"><div class="empty">No bills yet</div></div>
+  </div>
+
+  <!-- Accounts panel -->
+  <div id="ftab-accounts" style="display:none">
+    <div class="shdr"><div class="stitle">Bank Accounts</div><button class="bicon" onclick="openPlaidLink()">+ Connect</button></div>
+    <div class="card" style="padding:0 13px" id="acctsList"><div class="empty">No accounts connected</div></div>
+    <div class="shdr"><div class="stitle">Splitwise</div><button class="bicon" onclick="connectSplitwise()">Connect</button></div>
+    <div class="card" style="padding:0 13px" id="swList"><div class="empty">Connect Splitwise to see balances</div></div>
+    <div class="shdr"><div class="stitle">Manual Debts</div><button class="bicon" onclick="openModal('addDebtMod')">+ Add</button></div>
+    <div class="card" style="padding:0 13px" id="debtsList"><div class="empty">No manual debts</div></div>
+
+  </div>
+
+  <!-- Investing panel (placeholder) -->
+  <div id="ftab-investing" style="display:none">
+    <div class="card" style="text-align:center;padding:32px 16px">
+      <div style="font-size:1.6rem;margin-bottom:8px">📈</div>
+      <div style="font-weight:700;font-size:.9rem;margin-bottom:5px">Investing</div>
+      <div style="font-size:.72rem;color:var(--text3)">Investment tracking coming soon.</div>
     </div>
   </div>
-  <div class="card" style="padding:0 13px" id="billsList"><div class="empty">No bills yet</div></div>
 
-  <!-- Accounts -->
-  <div class="shdr"><div class="stitle">Bank Accounts</div><button class="bicon" onclick="openPlaidLink()">+ Connect</button></div>
-  <div class="card" style="padding:0 13px" id="acctsList"><div class="empty">No accounts connected</div></div>
-
-  <!-- Debts -->
-  <div class="shdr"><div class="stitle">Splitwise</div><button class="bicon" onclick="connectSplitwise()">Connect</button></div>
-  <div class="card" style="padding:0 13px" id="swList"><div class="empty">Connect Splitwise to see balances</div></div>
-  <div class="shdr"><div class="stitle">Manual Debts</div><button class="bicon" onclick="openModal('addDebtMod')">+ Add</button></div>
-  <div class="card" style="padding:0 13px" id="debtsList"><div class="empty">No manual debts</div></div>
-
-  <!-- Ask AI -->
-  <div class="shdr"><div class="stitle">Ask AI</div></div>
-  <div class="card chat-w" style="padding:13px">
-    <div class="chat-msgs" id="chatMsgs">
-      <div class="bubble ai">Hey! I know your full financial picture. Ask me anything about earnings, spending, bills, or hitting your goals faster.</div>
-    </div>
-    <div class="chat-suggests" id="chatSug">
-      <button class="csug" onclick="sendSug(this)">How am I doing this month?</button>
-      <button class="csug" onclick="sendSug(this)">What's my biggest expense?</button>
-      <button class="csug" onclick="sendSug(this)">Will I hit my goal?</button>
-      <button class="csug" onclick="sendSug(this)">Where can I cut spending?</button>
-    </div>
-    <div class="chat-in-row">
-      <input class="chat-in" id="chatIn" placeholder="Ask about your finances..." onkeydown="if(event.key==='Enter')sendChat()">
-      <button class="chat-send" onclick="sendChat()">↑</button>
-    </div>
-  </div>
 </div>
 
 <!-- ═══ FLOATING NAV ═══ -->
@@ -722,10 +725,19 @@ body{
   <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">☰</span><span class="nb-lbl">Finance</span></button>
 </nav>
 
-<!-- ═══ DUAL FABS ═══ -->
+<!-- ═══ SINGLE FAB ═══ -->
 <div class="fabs">
-  <button class="fab fab-ai" onclick="openAI()" title="Ask AI">✦</button>
-  <button class="fab fab-log" onclick="openModal('quickMod')" title="Quick Log">+</button>
+  <button class="fab fab-log" onclick="openModal('fabSheet')" title="Actions" id="mainFab">+</button>
+</div>
+
+<!-- FAB action sheet -->
+<div class="ov" id="fabSheet">
+  <div class="modal" style="padding-bottom:env(safe-area-inset-bottom,12px)">
+    <div class="mhandle"></div>
+    <button class="btn btn-p" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openModal('quickMod')">⚡ Quick Log Earnings</button>
+    <button class="btn btn-g" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openAI()">✦ Ask AI</button>
+    <button class="btn btn-g" style="width:100%" onclick="closeModal('fabSheet')">Cancel</button>
+  </div>
 </div>
 
 <!-- ═══ SORT STYLE ═══ -->
@@ -956,7 +968,6 @@ body{
     <div class="settings-divider"></div>
 
     <!-- Account -->
-    <button class="btn btn-r" style="width:100%;margin-bottom:5px" onclick="logout()">Sign Out</button>
     <button class="btn btn-g" style="width:100%" onclick="closeModal('settingsMod')">Close</button>
   </div>
 </div>
@@ -1230,7 +1241,7 @@ function showPage(id) {
 
 function openAI() {
   showPage('finance');
-  setTimeout(()=>{ const el=document.getElementById('chatIn'); if(el) el.focus(); },300);
+  showFinanceTab('accounts', document.querySelector('.ftab[onclick*="accounts"]'));
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1318,8 +1329,8 @@ function renderHome() {
   const dEl=document.getElementById('fundDebit'), cEl=document.getElementById('fundCredit');
   dEl.textContent=fmt(debit); dEl.style.color='var(--green)';
   cEl.textContent=fmt(credit);
-  // Credit: if balance is high (close to limit) = red, if low = green
-  cEl.style.color=credit>500?'var(--red)':'var(--green)';
+  // Credit balance is always debt — never green
+  cEl.style.color=credit>0?'var(--red)':'var(--text3)';
 
   // Stats
   document.getElementById('hWeek').textContent =fmt(weekEarnings());
@@ -1339,11 +1350,15 @@ function renderHome() {
     <div class="bdrow" style="font-weight:800;padding-top:8px"><span class="bdlbl" style="color:var(--text)">🎯 Your target today</span><span style="color:var(--gold)">${fmt(target)}</span></div>`;
 
   // Break-even
-  const bePct=spent>0?Math.min(100,(earned/spent)*100):100;
+  const hasOverdue = bd.overdue > 0;
+  const bePctRaw=spent>0?Math.min(100,(earned/spent)*100):100;
+  // If overdue bills exist, cap display at 95% so success state is never shown alongside overdue
+  const bePct = hasOverdue ? Math.min(bePctRaw, 95) : bePctRaw;
   const net=earned-spent;
   const fill=document.getElementById('beFill');
-  fill.style.width=bePct+'%'; fill.style.background=net>=0?'var(--green)':'var(--gold)';
-  document.getElementById('bePct').textContent=Math.round(bePct)+'%';
+  fill.style.width=bePct+'%';
+  fill.style.background=hasOverdue?'var(--gold)':net>=0?'var(--green)':'var(--gold)';
+  document.getElementById('bePct').textContent=Math.round(bePct)+'%'+(hasOverdue?' ⚠':'');
   const beMsg = earned===0 && spent===0 ? 'Start driving to track today' : `Earned ${fmt(earned)}`;
   document.getElementById('beEarned').textContent=beMsg;
   document.getElementById('beSpent').textContent=earned===0&&spent===0 ? '' : `Spent ${fmt(spent)}`;
@@ -1408,7 +1423,7 @@ function openFundsDetail(type) {
       ?accts.map(a=>`<div class="acct-row">
           <div class="acct-icon">💳</div>
           <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · Credit</div></div>
-          <div class="acct-bal" style="color:${(a.balances?.current||0)>500?'var(--red)':'var(--green)'}">${fmt(a.balances?.current||0)} owed</div>
+          <div class="acct-bal" style="color:var(--red)">${fmt(a.balances?.current||0)} owed</div>
         </div>`).join('')
         +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Credit Owed</span><span style="color:var(--red)">${fmt(total)}</span></div>`
       :'<div class="empty">No credit accounts connected</div>';
@@ -1601,7 +1616,8 @@ function filterEarn(p,btn) {
 let _isModeCur='spending';
 function setIsMode(mode,btn) {
   _isModeCur=mode;
-  document.querySelectorAll('.istab').forEach(t=>t.classList.remove('active'));
+  const spendPage=document.getElementById('page-spend');
+  if(spendPage) spendPage.querySelectorAll('.istab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
   renderTxnList();
   // Update today/month stats to reflect current mode
@@ -1639,10 +1655,9 @@ function renderSpend() {
   document.getElementById('sMonth').textContent=fmt(monthSpending());
   if(S.accounts.length) {
     document.getElementById('plaidStatus').textContent='🏦 Bank Connected';
-    document.getElementById('plaidBtn').textContent='Sync';
-    document.getElementById('plaidBtn').onclick=syncPlaid;
-    const rb=document.getElementById('plaidResetBtn');
-    if(rb) rb.style.display='block';
+    const pb=document.getElementById('plaidBtn');
+    pb.textContent='↺ Sync';
+    pb.onclick=syncPlaid;
   }
   drawDonut(); drawFlow(); renderBudBars(); renderCatChips(); renderTxnList();
 }
@@ -1720,6 +1735,14 @@ function onFlowClick(e,canvas) {
     ${dayT.map(t=>`<div class="txn" style="padding:6px 0">${logoEl(t.description,t.category)}<div class="tbody"><div class="tname" style="font-size:.76rem">${t.label||t.description||'Transaction'}</div></div><div class="tamt" style="color:var(--red);font-size:.76rem">-${fmt(t.amount)}</div></div>`).join('')}
     ${!dayE.length&&!dayT.length?'<div style="font-size:.7rem;color:var(--text3)">No activity this day</div>':''}
     <button onclick="document.getElementById('flowDetail').style.display='none'" style="font-size:.65rem;background:none;border:none;color:var(--text3);cursor:pointer;margin-top:4px">Collapse ▴</button>`;
+}
+
+function toggleBudBars() {
+  const el=document.getElementById('budBars');
+  const ch=document.getElementById('budChevron');
+  const open=el.style.display==='none';
+  el.style.display=open?'':'none';
+  if(ch) ch.textContent=open?'▼':'▶';
 }
 
 function renderBudBars() {
@@ -1842,45 +1865,69 @@ function renderBills() {
     return a._days-b._days;
   });
 
-  document.getElementById('billsList').innerHTML=combined.length
-    ?combined.map(b=>{
-        const chip=b.paid?'chip-pd':b.skipped?'chip-sk':b._days<0?'chip-ov':b._days<=3?'chip-sn':b._ot?'chip-ot':'chip-up';
-        const lbl=b.paid?'✓ Paid':b.skipped?'Skipped':b._days<0?'🚨 Overdue':b._days===0?'Today!':
-          b._ot?new Date(b.due_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):b.due_day+'th';
-        const dueLabel = b._days<0
-          ? (b._days<-7?'Carried Over':'Overdue')
-          : b._days===0?'Due Today'
-          : b._ot ? new Date(b.due_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
-          : `Due ${b.due_day}${[,'st','nd','rd'][b.due_day%10]||'th'}`;
-        const amtColor = b.paid?'var(--green)':b._days<0&&!b.paid?'var(--red)':'var(--text)';
-        return `<div class="brow">
-          <div class="brow-top">
-            <div class="bicon">${catIcons[b.category||'other']||'📦'}</div>
-            <div class="bbody">
-              <div class="bname">${b.name}</div>
-              <div class="bsub">${b._ot?'One-time':'Monthly'} · ${ttc(b.category||'Other')}</div>
-            </div>
-            <div style="text-align:right;flex-shrink:0">
-              <div class="bamt" style="color:${amtColor}">${fmt(b.amount)}</div>
-              <span class="chip ${chip}" style="margin-top:3px;display:inline-block">${lbl}</span>
-            </div>
-          </div>
-          <div class="brow-bot">
-            <div style="font-size:.63rem;color:${b._days<0&&!b.paid?'var(--red)':b._days<=3&&!b.paid?'var(--gold)':'var(--text3)'};font-weight:600">${dueLabel}</div>
-            <div class="bactions">
-              ${b.skipped
-                ?`<button class="bact-btn undo" onclick="unskipBill('${b.id}','${b._ot?'ot':'bill'}')">Undo Skip</button>`
-                :!b.paid
-                  ?`<button class="bact-btn pay" onclick="payBill('${b.id}','${b._ot?'ot':'bill'}')">✓ Mark Paid</button>
-                    <button class="bact-btn" onclick="skipBill('${b.id}','${b._ot?'ot':'bill'}')">Skip</button>`
-                  :`<button class="bact-btn undo" onclick="unpayBill('${b.id}','${b._ot?'ot':'bill'}')">Undo Paid</button>`
-              }
-              <button class="bact-btn" style="padding:5px 9px" onclick="openEditBillMod('${b.id}','${b._ot?'ot':'bill'}')">✎</button>
-            </div>
-          </div>
-        </div>`;
-      }).join('')
-    :'<div class="empty">No bills yet. Add above.</div>';
+  const billRow = b => {
+    const chip=b.paid?'chip-pd':b.skipped?'chip-sk':b._days<0?'chip-ov':b._days<=3?'chip-sn':b._ot?'chip-ot':'chip-up';
+    const lbl=b.paid?'✓ Paid':b.skipped?'Skipped':b._days<0?'🚨 Overdue':b._days===0?'Today!':
+      b._ot?new Date(b.due_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):b.due_day+'th';
+    const dueLabel = b.paid
+      ? (b._ot ? new Date(b.due_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : `${b.due_day}${[,'st','nd','rd'][b.due_day%10]||'th'}`)
+      : b._days<0 ? (b._days<-7?'Carried Over':'Overdue')
+      : b._days===0?'Due Today'
+      : b._ot ? new Date(b.due_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
+      : `Due ${b.due_day}${[,'st','nd','rd'][b.due_day%10]||'th'}`;
+    const amtColor = b.paid?'var(--green)':b._days<0&&!b.paid?'var(--red)':'var(--text)';
+    return `<div class="brow">
+      <div class="brow-top">
+        <div class="bicon">${catIcons[b.category||'other']||'📦'}</div>
+        <div class="bbody">
+          <div class="bname">${b.name}</div>
+          <div class="bsub">${b._ot?'One-time':'Monthly'} · ${ttc(b.category||'Other')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="bamt" style="color:${amtColor}">${fmt(b.amount)}</div>
+          <span class="chip ${chip}" style="margin-top:3px;display:inline-block">${lbl}</span>
+        </div>
+      </div>
+      <div class="brow-bot">
+        <div style="font-size:.63rem;color:${b._days<0&&!b.paid?'var(--red)':b._days<=3&&!b.paid?'var(--gold)':'var(--text3)'};font-weight:600">${dueLabel}</div>
+        <div class="bactions">
+          ${b.skipped
+            ?`<button class="bact-btn undo" onclick="unskipBill('${b.id}','${b._ot?'ot':'bill'}')">Undo Skip</button>`
+            :!b.paid
+              ?`<button class="bact-btn pay" onclick="payBill('${b.id}','${b._ot?'ot':'bill'}')">✓ Mark Paid</button>
+                <button class="bact-btn" onclick="skipBill('${b.id}','${b._ot?'ot':'bill'}')">Skip</button>`
+              :`<button class="bact-btn undo" onclick="unpayBill('${b.id}','${b._ot?'ot':'bill'}')">Undo Paid</button>`
+          }
+          <button class="bact-btn" style="padding:5px 9px" onclick="openEditBillMod('${b.id}','${b._ot?'ot':'bill'}')">✎</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const unpaidBills = combined.filter(b=>!b.paid);
+  const paidBills   = combined.filter(b=>b.paid);
+
+  let html = unpaidBills.length
+    ? unpaidBills.map(billRow).join('')
+    : '<div class="empty">No bills yet. Add above.</div>';
+
+  if(paidBills.length) {
+    html += `<details style="margin-top:10px">
+      <summary style="font-size:.65rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);padding:8px 2px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:5px">
+        <span id="paidChevron">▶</span> Paid (${paidBills.length})
+      </summary>
+      <div style="margin-top:4px">${paidBills.map(billRow).join('')}</div>
+    </details>`;
+  }
+
+  document.getElementById('billsList').innerHTML = html;
+
+  // Animate chevron on details toggle
+  const det = document.getElementById('billsList').querySelector('details');
+  if(det) det.addEventListener('toggle', ()=>{
+    const ch = det.querySelector('#paidChevron');
+    if(ch) ch.textContent = det.open ? '▼' : '▶';
+  });
 
   showBillSuggestions();
 }
@@ -1990,6 +2037,15 @@ function renderMore() {
 }
 
 function renderFinance() { renderBills(); renderMore(); }
+
+function showFinanceTab(tab, btn) {
+  ['bills','accounts','investing'].forEach(t=>{
+    const el=document.getElementById('ftab-'+t);
+    if(el) el.style.display=(t===tab)?'':'none';
+  });
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
 
 // ═══════════════════════════════════════════════════════
 // EARNINGS ACTIONS
@@ -2242,9 +2298,6 @@ async function saveSettings() {
   await req('/api/settings',{method:'PUT',body:S.settings});
   saveLocal();renderHome();
   closeModal('settingsMod');
-  // Brief flash confirmation on gear btn
-  const gb=document.getElementById('gearBtn');
-  if(gb){gb.textContent='✓';setTimeout(()=>{gb.textContent='⚙︎';},1400);}
 }
 async function saveBudget() {
   S.budgets={food:parseFloat(document.getElementById('budFood').value)||400,transportation:parseFloat(document.getElementById('budTrans').value)||600,shopping:parseFloat(document.getElementById('budShop').value)||150,entertainment:parseFloat(document.getElementById('budEnt').value)||50,utilities:parseFloat(document.getElementById('budUtil').value)||600,health:parseFloat(document.getElementById('budHealth').value)||100,other:parseFloat(document.getElementById('budOther').value)||300};
@@ -2463,6 +2516,8 @@ function celebrate() {
 function setSyncing(v) {
   document.getElementById('syncDot').className='sync-dot'+(v?' syncing':'');
   document.getElementById('syncLbl').textContent=v?'Syncing...':'Live';
+  const pb=document.getElementById('plaidBtn');
+  if(pb){pb.disabled=v;pb.style.opacity=v?'0.5':'1';}
 }
 
 // ═══════════════════════════════════════════════════════
