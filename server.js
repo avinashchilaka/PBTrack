@@ -305,7 +305,7 @@ app.get('/api/plaid/transactions', auth, async (req, res) => {
 
     // Apply rules server-side too + fix is_income for old records
     const withRules = (txns||[]).map(t => {
-      const key = (t.description||'').toLowerCase().trim().substring(0,30);
+      const key = (t.description||'').toLowerCase().trim().replace(/\s+/g,' ').substring(0,30);
       let tx = { ...t };
       // Fix legacy records: if amount was stored as negative, it's income
       // (shouldn't happen but safety net)
