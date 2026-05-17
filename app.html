@@ -616,6 +616,7 @@ body{
     <div><div style="font-size:.83rem;font-weight:700" id="plaidStatus">Connect Bank</div><div style="font-size:.65rem;color:var(--text3);margin-top:1px">Link via Plaid for auto-sync</div></div>
     <div style="display:flex;gap:5px">
       <button class="bicon" id="plaidBtn" onclick="openPlaidLink()">🏦 Connect</button>
+      <button class="bicon" id="fullSyncBtn" style="display:none" onclick="fullResync()" title="Pull all historical transactions">↺ Full Sync</button>
     </div>
   </div>
 
@@ -670,6 +671,11 @@ body{
   </div>
 
   <div class="chips" id="catChips"></div>
+  <div style="display:flex;gap:5px;margin-bottom:7px" id="txnRangePills">
+    <button class="cchip active" id="trp-month" onclick="setTxnRange('month',this)">This Month</button>
+    <button class="cchip" id="trp-3m" onclick="setTxnRange('3m',this)">3 Months</button>
+    <button class="cchip" id="trp-all" onclick="setTxnRange('all',this)">All Time</button>
+  </div>
   <div class="card" style="padding:0 13px" id="allTxns"><div class="empty">Loading transactions…</div></div>
 </div>
 
@@ -1126,6 +1132,7 @@ const ttc = s => {
 let _earnFilter = 'week';
 let _catFilter  = null;
 let _isMode     = 'spending';
+let _txnRange   = 'month'; // 'month' | '3m' | 'all'
 let _sortMode   = 'newest';
 let _homeTxnMode = 'spending'; // home shows spending by default
 let _pendingSort= 'newest';
@@ -1321,6 +1328,10 @@ function showPage(id) {
   if(id==='earnings') renderEarnings();
   if(id==='spend') {
     _catFilter=null;
+    _txnRange='month';
+    // Reset range pills UI
+    document.querySelectorAll('#txnRangePills .cchip').forEach(b=>b.classList.remove('active'));
+    const mp=document.getElementById('trp-month'); if(mp) mp.classList.add('active');
     renderSpend();
     const allTab=document.querySelector('#page-spend .istab:first-child');
     setIsMode('all',allTab);
@@ -1805,6 +1816,8 @@ function renderSpend() {
     const pb=document.getElementById('plaidBtn');
     pb.textContent='↺ Sync';
     pb.onclick=syncPlaid;
+    const fb=document.getElementById('fullSyncBtn');
+    if(fb) fb.style.display='';
   }
   drawDonut(); drawFlow(); renderBudBars(); renderCatChips(); renderTxnList();
 }
@@ -1935,13 +1948,28 @@ function groupedByDate(list, rowFn) {
   return html;
 }
 
+function setTxnRange(range, btn) {
+  _txnRange = range;
+  document.querySelectorAll('#txnRangePills .cchip').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderTxnList();
+}
+
 function renderTxnList() {
   const bankLinked=S.accounts.length>0;
   // Normalize any object-shaped categories before filtering
   S.expenses.forEach(e=>{ if(e.category&&typeof e.category==='object') e.category=e.category.cat||'other'; });
   let list=[...S.expenses];
+  // Date range filter
+  if(_txnRange==='month') list=list.filter(t=>t.date&&t.date.startsWith(_monthStr));
+  else if(_txnRange==='3m') {
+    const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-3);
+    const cutStr=cutoff.toISOString().slice(0,10);
+    list=list.filter(t=>t.date&&t.date>=cutStr);
+  }
+  // Mode filter
   if(_isModeCur==='income') list=list.filter(t=>(t.is_income||t.category==='income'||t.amount<0)&&!isTransfer(t));
-  else if(_isModeCur==='spending') list=list.filter(t=>!t.is_income&&t.category!=='income'&&t.category!=='transfers'&&t.amount>=0&&!isTransfer(t));
+  else if(_isModeCur==='spending') list=list.filter(t=>!t.is_income&&t.category!=='income'&&t.category!=='transfers'&&t.category!=='Internal Transfer'&&t.amount>=0&&!isTransfer(t));
   if(_catFilter) list=list.filter(t=>(t.category||'other')===_catFilter);
   list=list.sort((a,b)=>sortTxns(a,b));
   document.getElementById('allTxns').innerHTML=list.length
