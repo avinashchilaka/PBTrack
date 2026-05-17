@@ -722,8 +722,8 @@ body{
 <nav class="fnav">
   <button class="nb active" onclick="showPage('home')" id="nav-home"><span class="nb-icon">⌂</span><span class="nb-lbl">Home</span></button>
   <button class="nb" onclick="showPage('earnings')" id="nav-earnings"><span class="nb-icon">⚡</span><span class="nb-lbl">Earnings</span></button>
-  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Activity</span></button>
-  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">◎</span><span class="nb-lbl">Finance</span></button>
+  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Spend</span></button>
+  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">☰</span><span class="nb-lbl">Finance</span></button>
 </nav>
 
 <!-- ═══ SINGLE FAB ═══ -->
@@ -1249,12 +1249,7 @@ function showPage(id) {
   if(nb) nb.classList.add('active');
   if(id==='home')     renderHome();
   if(id==='earnings') renderEarnings();
-  if(id==='spend') {
-    _catFilter=null;
-    renderSpend();
-    const allTab=document.querySelector('#page-spend .istab:first-child');
-    setIsMode('all',allTab);
-  }
+  if(id==='spend')    renderSpend();
   if(id==='finance')  renderFinance();
   window.scrollTo(0,0);
 }
@@ -1970,26 +1965,39 @@ function showBillSuggestions() {
     S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
     !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
   );
-  // Dynamic: merchants in 2+ distinct months not already in bills
+  // Dynamic: merchants in 2+ distinct months not already in bills.
+  // Only considers true outgoing merchant charges — strictly excludes transfers,
+  // income, cashouts, tips, trips, sweeps, unloads, and similar non-bill patterns.
+  const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
   const dynMap={};
   S.expenses.forEach(e=>{
+    // Must be outgoing (positive Plaid amount), not income, not a transfer
+    if(e.is_income||e.amount<1||isTransfer(e)) return;
+    // Skip if categorised as transfer or income
+    if(e.category==='transfers'||e.category==='income') return;
     const desc=(e.description||'').trim();
     const month=(e.date||'').slice(0,7);
     if(!desc||!month) return;
     const key=desc.toLowerCase();
+    // Exclude non-bill patterns by description
+    if(BILL_SKIP.test(key)) return;
     if(!dynMap[key]) dynMap[key]={desc,months:new Set(),amounts:[],dates:[]};
     dynMap[key].months.add(month);
-    dynMap[key].amounts.push(Math.abs(parseFloat(e.amount)||0));
+    dynMap[key].amounts.push(parseFloat(e.amount)||0);
     dynMap[key].dates.push(e.date||'');
   });
-  const SKIP_PATS=/uber|lyft|instapay|transfer|deposit|atm|zelle|venmo|cashapp|paypal|withdrawal|direct dep|payroll/i;
   const dynMatches=Object.values(dynMap)
-    .filter(d=>
-      d.months.size>=2&&
-      !SKIP_PATS.test(d.desc)&&
-      !S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))&&
-      !patMatches.some(p=>d.desc.toLowerCase().includes(p.m))
-    )
+    .filter(d=>{
+      if(d.months.size<2) return false;
+      const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
+      // Plausible fixed monthly bill: $1-$2500; consistent amounts (CV < 30%)
+      if(avg<1||avg>2500) return false;
+      const stddev=Math.sqrt(d.amounts.reduce((s,a)=>s+Math.pow(a-avg,2),0)/d.amounts.length);
+      if(avg>0&&(stddev/avg)>0.3) return false;
+      if(S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))) return false;
+      if(patMatches.some(p=>d.desc.toLowerCase().includes(p.m))) return false;
+      return true;
+    })
     .map(d=>{
       const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
       const lastDate=d.dates.sort().slice(-1)[0];
