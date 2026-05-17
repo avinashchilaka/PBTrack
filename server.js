@@ -464,7 +464,7 @@ Generate a sharp, motivating daily briefing. Return ONLY valid JSON:
 {"headline":"short punchy headline","briefing":"2-3 sentence briefing with specific numbers","tip":"one actionable tip","mood":"positive|warning|neutral"}`;
 
     const msg = await anthropic.messages.create({
-      model:'claude-sonnet-4-20250514', max_tokens:400,
+      model:'claude-sonnet-4-5', max_tokens:400,
       messages:[{role:'user',content:prompt}],
     });
     const text = msg.content[0].text.trim().replace(/```json|```/g,'').trim();
@@ -479,7 +479,7 @@ app.post('/api/ai/chat', auth, async (req, res) => {
   try {
     const { question, context } = req.body;
     const msg = await anthropic.messages.create({
-      model:'claude-sonnet-4-20250514', max_tokens:200,
+      model:'claude-sonnet-4-5', max_tokens:200,
       messages:[
         { role:'user', content: context + '\n\nQuestion: ' + question }
       ],
@@ -496,7 +496,7 @@ app.post('/api/ai/budget', auth, async (req, res) => {
     const { context } = req.body;
     const prompt = context + `\n\nReturn ONLY valid JSON with no markdown or preamble. Example format: {"budgets":{"food":350,"transportation":500,"shopping":100,"entertainment":40,"utilities":580,"health":80,"other":250},"flags":[{"merchant":"Starbucks","avg_monthly":120,"insight":"$120/mo on coffee — that's $4/day from your gig earnings"}]}`;
     const msg = await anthropic.messages.create({
-      model:'claude-sonnet-4-20250514', max_tokens:600,
+      model:'claude-sonnet-4-5', max_tokens:600,
       messages:[{role:'user',content:prompt}],
     });
     const text = msg.content[0].text.trim().replace(/```json|```/g,'').trim();
