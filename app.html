@@ -153,10 +153,6 @@ body{
 .fab:active{transform:scale(.92);}
 .fab-ai{background:var(--text);color:var(--bg);font-size:.95rem;font-weight:700;}
 .fab-log{background:var(--green);color:#fff;font-size:1.3rem;}
-.fab-livvy{width:48px;height:48px;border-radius:13px;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 20px var(--shadow);transition:transform .15s;background:var(--text);color:var(--bg);gap:1px;}
-.fab-livvy:active{transform:scale(.91);}
-.fab-livvy-l{font-size:1.05rem;font-weight:900;font-style:italic;line-height:1;letter-spacing:-.5px;}
-.fab-livvy-dot{font-size:.45rem;font-weight:800;opacity:.6;letter-spacing:.5px;text-transform:uppercase;}
 
 /* ── CARDS ── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:10px;transition:background .3s,border-color .3s;}
@@ -533,7 +529,7 @@ body{
       </div>
     </div>
   </div>
-  <div class="card" style="padding:0 13px" id="latestTxns"><div class="empty">Connect bank in Accounts</div></div>
+  <div class="card" style="padding:0 13px" id="latestTxns"><div class="empty">Loading transactions…</div></div>
 </div>
 
 <!-- ═══ EARNINGS ═══ -->
@@ -663,14 +659,14 @@ body{
       </button>
       <div style="display:flex;gap:5px">
         <button class="bicon" onclick="openModal('editBudMod')">Edit</button>
-        <button class="bicon" onclick="requestAIBudget()">✨</button>
+        <button class="bicon" onclick="requestAIBudget()">AI ✨</button>
       </div>
     </div>
     <div id="budBars" style="display:none"><div class="empty">Set budgets to track limits</div></div>
   </div>
 
   <div class="chips" id="catChips"></div>
-  <div class="card" style="padding:0 13px" id="allTxns"><div class="empty">Connect bank to see transactions</div></div>
+  <div class="card" style="padding:0 13px" id="allTxns"><div class="empty">Loading transactions…</div></div>
 </div>
 
 <!-- ═══ FINANCE (Bills · Accounts · Debts) ═══ -->
@@ -726,27 +722,46 @@ body{
 <nav class="fnav">
   <button class="nb active" onclick="showPage('home')" id="nav-home"><span class="nb-icon">⌂</span><span class="nb-lbl">Home</span></button>
   <button class="nb" onclick="showPage('earnings')" id="nav-earnings"><span class="nb-icon">⚡</span><span class="nb-lbl">Earnings</span></button>
-  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Activity</span></button>
-  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">◎</span><span class="nb-lbl">Finance</span></button>
+  <button class="nb" onclick="showPage('spend')" id="nav-spend"><span class="nb-icon">◈</span><span class="nb-lbl">Spend</span></button>
+  <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">☰</span><span class="nb-lbl">Finance</span></button>
 </nav>
 
-<!-- ═══ SINGLE FAB ═══ -->
-<div class="fabs">
-  <button class="fab-livvy" onclick="openModal('fabSheet')" title="Actions" id="mainFab">
-    <span class="fab-livvy-l">L.</span>
-    <span class="fab-livvy-dot">livvy</span>
+<!-- ═══ SPEED DIAL FAB ═══ -->
+<style>
+.sd-wrap{position:fixed;bottom:82px;right:14px;z-index:200;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.sd-actions{display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .18s ease,transform .18s ease;}
+.sd-wrap.open .sd-actions{pointer-events:auto;opacity:1;transform:translateY(0);}
+.sd-action{display:flex;align-items:center;gap:8px;flex-direction:row-reverse;}
+.sd-action-btn{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 3px 12px rgba(0,0,0,.35);transition:transform .12s;}
+.sd-action-btn:active{transform:scale(.91);}
+.sd-action-lbl{background:var(--card);color:var(--text);font-size:.72rem;font-weight:600;padding:4px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);border:1px solid var(--border2);}
+.sd-main{width:50px;height:50px;border-radius:13px;background:var(--text);color:var(--bg);border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 4px 18px rgba(0,0,0,.4);transition:transform .15s;}
+.sd-main:active{transform:scale(.91);}
+.sd-main-l{font-size:1.1rem;font-weight:900;font-style:italic;line-height:1;}
+.sd-main-dot{font-size:.42rem;font-weight:700;opacity:.55;letter-spacing:.5px;text-transform:uppercase;}
+.sd-backdrop{display:none;position:fixed;inset:0;z-index:199;}
+.sd-wrap.open .sd-backdrop{display:block;}
+</style>
+<div class="sd-backdrop" onclick="closeFab()"></div>
+<div class="sd-wrap" id="sdWrap">
+  <div class="sd-actions" id="sdActions" role="menu">
+    <div class="sd-action">
+      <button class="sd-action-btn" style="background:var(--text);color:var(--bg)" onclick="closeFab();openSupport()" aria-label="Smart Support">✦</button>
+      <span class="sd-action-lbl">Smart Support</span>
+    </div>
+    <div class="sd-action">
+      <button class="sd-action-btn" style="background:#facc15;color:#1a1a1a" onclick="closeFab();openModal('quickMod')" aria-label="Quick Log Earnings">⚡</button>
+      <span class="sd-action-lbl">Quick Log</span>
+    </div>
+  </div>
+  <button class="sd-main" id="mainFab" onclick="toggleFab()" aria-label="Actions" aria-expanded="false" aria-haspopup="true">
+    <span class="sd-main-l">L.</span>
+    <span class="sd-main-dot">livvy</span>
   </button>
 </div>
 
-<!-- FAB action sheet -->
-<div class="ov" id="fabSheet">
-  <div class="modal" style="padding-bottom:env(safe-area-inset-bottom,12px)">
-    <div class="mhandle"></div>
-    <button class="btn btn-p" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openModal('quickMod')">⚡ Quick Log Earnings</button>
-    <button class="btn btn-p" style="width:100%;margin-bottom:9px;background:var(--s1);color:var(--text);border:1.5px solid var(--border2)" onclick="closeModal('fabSheet');openSupport()">✦ Smart Support</button>
-    <button class="btn btn-g" style="width:100%" onclick="closeModal('fabSheet')">Cancel</button>
-  </div>
-</div>
+<!-- FAB action sheet (kept for legacy compat, not shown) -->
+<div class="ov" id="fabSheet" style="display:none"></div>
 
 <!-- ═══ SORT STYLE ═══ -->
 <style>
@@ -995,44 +1010,6 @@ body{
   </div>
 </div>
 
-<!-- ═══ SMART SUPPORT OVERLAY ═══ -->
-<style>
-.support-ov{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);align-items:flex-end;justify-content:center;}
-.support-ov.open{display:flex;}
-.support-panel{background:var(--card);border:1px solid var(--border2);border-radius:var(--r) var(--r) 0 0;padding:13px 17px 28px;width:100%;max-width:540px;max-height:82vh;display:flex;flex-direction:column;animation:slideUp .22s ease;}
-.support-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.support-title{font-size:.88rem;font-weight:800;}
-.support-close{background:none;border:none;color:var(--text3);font-size:1.3rem;cursor:pointer;padding:2px 6px;line-height:1;}
-.support-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding:4px 0;min-height:160px;max-height:44vh;}
-.support-sugs{display:flex;flex-wrap:wrap;gap:4px;padding:7px 0 4px;}
-.support-in-row{display:flex;gap:7px;padding-top:9px;border-top:1px solid var(--border);}
-.support-in{flex:1;background:var(--s1);border:1.5px solid var(--border2);border-radius:var(--r-pill);color:var(--text);font-family:'Inter',sans-serif;font-size:.83rem;padding:8px 13px;outline:none;}
-.support-in:focus{border-color:var(--text);}
-.support-send{width:36px;height:36px;border-radius:50%;background:var(--text);border:none;color:var(--bg);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-</style>
-<div class="support-ov" id="supportOv">
-  <div class="support-panel">
-    <div class="mhandle"></div>
-    <div class="support-hdr">
-      <div class="support-title">✦ Smart Support</div>
-      <button class="support-close" onclick="closeSupport()">×</button>
-    </div>
-    <div class="support-msgs" id="supportMsgs">
-      <div class="bubble ai">Hey! I know your full financial picture. Ask me anything about earnings, spending, bills, or hitting your goals faster.</div>
-    </div>
-    <div class="support-sugs" id="supportSug">
-      <button class="csug" onclick="supportSugSend(this)">How am I doing this month?</button>
-      <button class="csug" onclick="supportSugSend(this)">What's my biggest expense?</button>
-      <button class="csug" onclick="supportSugSend(this)">Will I hit my goal?</button>
-      <button class="csug" onclick="supportSugSend(this)">Where can I cut spending?</button>
-    </div>
-    <div class="support-in-row">
-      <input class="support-in" id="supportIn" placeholder="Ask about your finances…" onkeydown="if(event.key==='Enter')sendSupport()">
-      <button class="support-send" onclick="sendSupport()">↑</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <script>
 'use strict';
@@ -1097,7 +1074,12 @@ const S = {
 };
 
 const fmt = n => '$' + Math.abs(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const ttc = s => (s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+const ttc = s => {
+  if(!s) return '';
+  if(typeof s==='object') s=s.cat||'other'; // guard against object-shaped category
+  const map={income:'Income / Deposit',transfers:'Internal Transfer'};
+  return map[s]||(s).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+};
 
 let _earnFilter = 'week';
 let _catFilter  = null;
@@ -1295,60 +1277,27 @@ function showPage(id) {
   if(nb) nb.classList.add('active');
   if(id==='home')     renderHome();
   if(id==='earnings') renderEarnings();
-  if(id==='spend') {
-    _catFilter=null;
-    renderSpend();
-    const allTab=document.querySelector('#page-spend .istab:first-child');
-    setIsMode('all',allTab);
-  }
+  if(id==='spend')    renderSpend();
   if(id==='finance')  renderFinance();
   window.scrollTo(0,0);
 }
 
-// Smart Support — standalone overlay chat
-let _supportHistory = [];
-function openSupport() {
-  document.getElementById('supportOv').classList.add('open');
-  setTimeout(()=>{ const el=document.getElementById('supportIn'); if(el) el.focus(); }, 250);
+function toggleFab() {
+  const wrap=document.getElementById('sdWrap');
+  const btn=document.getElementById('mainFab');
+  const open=wrap.classList.toggle('open');
+  btn.setAttribute('aria-expanded',open);
 }
-function openAI() { openSupport(); } // legacy alias (avDropGo still calls openAI)
-function closeSupport() {
-  document.getElementById('supportOv').classList.remove('open');
+function closeFab() {
+  const wrap=document.getElementById('sdWrap');
+  const btn=document.getElementById('mainFab');
+  wrap.classList.remove('open');
+  btn.setAttribute('aria-expanded','false');
 }
-document.getElementById('supportOv').addEventListener('click', function(e){
-  if(e.target===this) closeSupport();
-});
-async function sendSupport() {
-  const inp=document.getElementById('supportIn');
-  const msg=inp.value.trim(); if(!msg) return;
-  inp.value='';
-  addSupportBubble(msg,'user');
-  document.getElementById('supportSug').style.display='none';
-  const loading=addSupportBubble('','ai',true);
-  try {
-    const context=`Avinash is a gig driver (Uber/Lyft) in San Diego. App: Livvy.
-Today ${_todayStr}: earned $${todayEarnings().toFixed(2)}, spent $${todaySpending().toFixed(2)}
-Week: $${weekEarnings().toFixed(2)} | Month: $${monthEarnings().toFixed(2)} | Goal: $${S.settings.monthly_goal}
-Daily target: $${calcDailyTarget().toFixed(2)}
-Unpaid bills: $${S.bills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0).toFixed(2)}
-Splitwise owed: $${S.splitwise.reduce((s,d)=>s+d.amount,0).toFixed(2)}
-Days left this month: ${getDaysLeft()}
-History: ${_supportHistory.slice(-3).map(m=>m.r+': '+m.c).join(' | ')}
-Be concise, specific with numbers, like a sharp financial coach. Max 2-3 sentences.`;
-    _supportHistory.push({r:'user',c:msg});
-    const r=await req('/api/ai/chat',{method:'POST',body:{question:msg,context}});
-    const answer=r?.answer||'Server may be waking up — try again.';
-    _supportHistory.push({r:'ai',c:answer});
-    loading.remove(); addSupportBubble(answer,'ai');
-  } catch(e){ loading.remove(); addSupportBubble('Connection error.','ai'); }
-}
-function supportSugSend(btn){ document.getElementById('supportIn').value=btn.textContent; sendSupport(); }
-function addSupportBubble(text,role,isLoading=false){
-  const msgs=document.getElementById('supportMsgs');
-  const div=document.createElement('div'); div.className='bubble '+role;
-  if(isLoading) div.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-  else div.textContent=text;
-  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight; return div;
+
+function openAI() {
+  // Legacy alias — always opens Smart Support overlay, never redirects to Finance tab
+  if(typeof openSupport==='function') openSupport();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1491,14 +1440,16 @@ function renderHome() {
     :'<div class="empty">No upcoming bills</div>';
 
   // Latest transactions — filtered by home mode
+  const bankLinked=S.accounts.length>0;
   let txns=[...S.expenses];
-  if(_homeTxnMode==='spending') txns=txns.filter(t=>!t.is_income&&t.category!=='income'&&t.amount>=0);
+  if(_homeTxnMode==='spending') txns=txns.filter(t=>!t.is_income&&t.category!=='income'&&typeof t.category!=='object'&&t.amount>=0&&!isTransfer(t));
   else if(_homeTxnMode==='income') txns=txns.filter(t=>t.is_income||t.category==='income'||t.amount<0);
-  // 'all' shows everything
   txns=txns.sort((a,b)=>sortTxns(a,b)).slice(0,10);
   document.getElementById('latestTxns').innerHTML=txns.length
     ?txns.map(t=>txnRow(t,S.expenses.indexOf(t))).join('')
-    :'<div class="empty">Transactions from your bank appear here</div>';
+    :bankLinked
+      ?'<div class="empty">No transactions yet — sync to load</div>'
+      :'<div class="empty">Connect a bank account in Finance to see transactions</div>';
 }
 
 function toggleBD() {
@@ -1774,7 +1725,8 @@ function drawDonut() {
   const ctx=canvas.getContext('2d');
   const cats={};
   S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income&&!isTransfer(e)).forEach(e=>{
-    const c=e.category||'other'; cats[c]=(cats[c]||0)+e.amount;
+    const raw=e.category; const c=(raw&&typeof raw==='object'?raw.cat:raw)||'other';
+    cats[c]=(cats[c]||0)+e.amount;
   });
   const entries=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const total=entries.reduce((s,[,v])=>s+v,0);
@@ -1854,7 +1806,7 @@ function toggleBudBars() {
 
 function renderBudBars() {
   const cats={};
-  S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income&&!isTransfer(e)).forEach(e=>{const c=e.category||'other';cats[c]=(cats[c]||0)+e.amount;});
+  S.expenses.filter(e=>e.date.startsWith(_monthStr)&&!e.is_income&&!isTransfer(e)).forEach(e=>{const raw=e.category;const c=(raw&&typeof raw==='object'?raw.cat:raw)||'other';cats[c]=(cats[c]||0)+e.amount;});
   document.getElementById('budBars').innerHTML=Object.entries(S.budgets).map(([cat,limit])=>{
     const sp=cats[cat]||0,pct=Math.min(100,(sp/limit)*100);
     const color=pct>=90?'var(--red)':pct>=70?'var(--gold)':'var(--green)';
@@ -1863,7 +1815,7 @@ function renderBudBars() {
 }
 
 function renderCatChips() {
-  const cats=[...new Set(S.expenses.filter(e=>e.date.startsWith(_monthStr)).map(e=>e.category||'other'))];
+  const cats=[...new Set(S.expenses.filter(e=>e.date.startsWith(_monthStr)).map(e=>{const raw=e.category;return (raw&&typeof raw==='object'?raw.cat:raw)||'other';}))];
   document.getElementById('catChips').innerHTML=
     `<button class="cchip${_catFilter===null?' active':''}" onclick="filterByCat(null,this)">All</button>`+
     cats.map(c=>`<button class="cchip${_catFilter===c?' active':''}" onclick="filterByCat('${c}',this)">${ttc(c)}</button>`).join('');
@@ -1896,99 +1848,63 @@ function groupedByDate(list, rowFn) {
 }
 
 function renderTxnList() {
+  const bankLinked=S.accounts.length>0;
+  // Normalize any object-shaped categories before filtering
+  S.expenses.forEach(e=>{ if(e.category&&typeof e.category==='object') e.category=e.category.cat||'other'; });
   let list=[...S.expenses];
-  // Income = transactions marked is_income OR category 'income' OR deposits (negative amounts from Plaid) — excludes internal transfers
   if(_isModeCur==='income') list=list.filter(t=>(t.is_income||t.category==='income'||t.amount<0)&&!isTransfer(t));
-  else if(_isModeCur==='spending') list=list.filter(t=>!t.is_income&&t.category!=='income'&&t.amount>=0&&!isTransfer(t));
+  else if(_isModeCur==='spending') list=list.filter(t=>!t.is_income&&t.category!=='income'&&t.category!=='transfers'&&t.amount>=0&&!isTransfer(t));
+  // 'all' mode shows everything
   if(_catFilter) list=list.filter(t=>(t.category||'other')===_catFilter);
   list=list.sort((a,b)=>sortTxns(a,b));
   document.getElementById('allTxns').innerHTML=list.length
     ?groupedByDate(list, t=>txnRow(t,S.expenses.indexOf(t)))
-    :'<div class="empty">No transactions match your filter</div>';
+    :bankLinked
+      ?'<div class="empty">No transactions match this filter</div>'
+      :'<div class="empty">Connect a bank account in Finance to see transactions</div>';
 }
 
 // ═══════════════════════════════════════════════════════
 // TRANSACTION DETAIL + MERCHANT RULES
 // ═══════════════════════════════════════════════════════
-// CATEGORY / SUBCATEGORY TAXONOMY
-const CAT_TREE = {
-  'Auto & Transportation': ['EV Charging','Gas / Fuel','Car Maintenance & Repairs','Car Insurance','Rideshare Commutes','Public Transit','Auto Loan / Finance Payment','Registration','Tolls & DMV Fees'],
-  'Housing': ['Rent','Groceries','Renters Insurance','Home Maintenance','Supplies & Repairs'],
-  'Utilities': ['Electric Bill','Water & Sewer Bill','Gas Bill','Cellular / Mobile Data Plan','Internet Service Provider (ISP)','Trash & Recycling Collection'],
-  'Food & Dining': ['Dining Out / Restaurants','Fast Food','Coffee Shops & Cafes','Food Delivery / Takeout Apps'],
-  'Subscriptions': ['Work Software / Gig Driver Helper Apps','Streaming Services','Premium Memberships / Cloud Infrastructure'],
-  'Financial, Loans & Advances': ['Cash Advances','Line of Credit / Installment Repayments','Credit Card Account Payments','Personal Loan Principal Repayment'],
-  'Shopping': ['Clothing & Apparel','Electronics & Work Tech Gadgets','Online Retail / Marketplace Purchases','Personal Care & Toiletries'],
-  'Entertainment & Lifestyle': ['Movies','Concerts & Events','Bars & Nightlife','Gym & Fitness Memberships','Travel','Flights & Lodging'],
-  'Health & Medical': ['Primary / Urgent Care Copays','Pharmacy & Medications','Health / Dental Insurance Premiums'],
-  'Other / Miscellaneous': ['Uncategorized Cash Outflows','Business Expense One-Offs','Reimbursements / Adjustments']
-};
-const CAT_KEYS = Object.keys(CAT_TREE);
-
 function getMKey(desc) { return (desc||'').toLowerCase().trim().replace(/\s+/g,' ').substring(0,30); }
-
-function buildCatSelHTML(selParent, selSub) {
-  const parentOpts = CAT_KEYS.map(p =>
-    `<option value="${p}"${p===selParent?' selected':''}>${p}</option>`
-  ).join('');
-  const subs = selParent && CAT_TREE[selParent] ? CAT_TREE[selParent] : [];
-  const subOpts = subs.map(s =>
-    `<option value="${s}"${s===selSub?' selected':''}>${s}</option>`
-  ).join('');
-  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Category</span><select id="txnCatSel" onchange="onParentCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.74rem;padding:4px 8px;outline:none;max-width:170px"><option value="">— Select —</option>${parentOpts}</select></div><div id="subCatRow" style="display:${subs.length?'flex':'none'};justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Subcategory</span><select id="txnSubSel" onchange="onSubCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.74rem;padding:4px 8px;outline:none;max-width:170px"><option value="">— Select —</option>${subOpts}</select></div>`;
-}
-
-function onParentCatChange() {
-  const parent = document.getElementById('txnCatSel').value;
-  const subs = parent && CAT_TREE[parent] ? CAT_TREE[parent] : [];
-  const row = document.getElementById('subCatRow');
-  const subSel = document.getElementById('txnSubSel');
-  if(subs.length) {
-    subSel.innerHTML = '<option value="">— Select —</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
-    row.style.display='flex';
-  } else { row.style.display='none'; }
-  _pendingRule=null;
-  document.getElementById('txnRuleBox').style.display='none';
-}
-
-function onSubCatChange() {
-  const t=S.expenses[_pendingTxn]; if(!t) return;
-  const parent=document.getElementById('txnCatSel').value;
-  const sub=document.getElementById('txnSubSel').value;
-  if(!parent||!sub) return;
-  _pendingRule={key:getMKey(t.description),cat:parent,sub,merchant:t.description};
-  document.getElementById('txnRuleText').textContent=`Apply "${parent} › ${sub}" to ALL transactions from "${t.description}"?`;
-  document.getElementById('txnRuleBox').style.display='block';
-}
-
-function onCatChange() { onParentCatChange(); } // legacy alias
 
 function openTxnDetail(idx) {
   const t=S.expenses[idx]; if(!t) return;
   _pendingTxn=idx; _pendingRule=null;
+  const cats=['food','transportation','shopping','entertainment','utilities','health','housing','subscription','debt','other','income','transfers'];
   document.getElementById('txnModName').textContent=t.label||t.description||'Transaction';
-  const selParent=t.category||'';
-  const selSub=t.subcategory||'';
   document.getElementById('txnModBody').innerHTML=`
     <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Amount</span><span style="font-weight:700;color:${t.is_income?'var(--green)':'var(--red)'}">${t.is_income?'+':'-'}${fmt(t.amount)}</span></div>
     <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Date</span><span style="font-weight:600">${t.date}</span></div>
-    ${buildCatSelHTML(selParent,selSub)}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem"><span style="color:var(--text3)">Category</span>
+      <select id="txnCatSel" onchange="onCatChange()" style="background:var(--s1);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.76rem;padding:4px 8px;outline:none">
+        ${cats.map(c=>`<option value="${c}"${(t.category||'other')===c?' selected':''}>${ttc(c)}</option>`).join('')}
+      </select>
+    </div>
     ${t.institution?`<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.78rem"><span style="color:var(--text3)">Account</span><span>🏦 ${t.institution}</span></div>`:''}`;
   document.getElementById('txnRuleBox').style.display='none';
   openModal('txnMod');
 }
 
+function onCatChange() {
+  const t=S.expenses[_pendingTxn]; if(!t) return;
+  const cat=document.getElementById('txnCatSel').value;
+  _pendingRule={key:getMKey(t.description),cat,merchant:t.description};
+  document.getElementById('txnRuleText').textContent=`Apply "${ttc(cat)}" to ALL past, present & future transactions from "${t.description}"?`;
+  document.getElementById('txnRuleBox').style.display='block';
+}
+
 function applyRule(applyAll) {
   const t=S.expenses[_pendingTxn]; if(!t||!_pendingRule) return;
-  const{key,cat,sub}=_pendingRule;
+  const{key,cat}=_pendingRule;
   S.expenses[_pendingTxn].category=cat;
-  S.expenses[_pendingTxn].subcategory=sub||'';
   if(applyAll) {
-    S.rules[key]={cat,sub:sub||''};
-    S.expenses.forEach((e,i)=>{ if(getMKey(e.description)===key){ S.expenses[i].category=cat; S.expenses[i].subcategory=sub||''; } });
+    S.rules[key]=cat; // always store as plain string
+    S.expenses.forEach((e,i)=>{if(getMKey(e.description)===key)S.expenses[i].category=cat;});
     req('/api/rules',{method:'POST',body:S.rules});
   } else {
-    req(`/api/transactions/${t.plaid_id||t.id}/category`,{method:'PATCH',body:{category:cat,subcategory:sub||''}});
+    req(`/api/transactions/${t.plaid_id||t.id}/category`,{method:'PATCH',body:{category:cat}});
   }
   saveLocal(); closeModal('txnMod'); renderSpend(); renderHome();
 }
@@ -2098,36 +2014,26 @@ function showBillSuggestions() {
     S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
     !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
   );
-  // Dynamic: merchants appearing in 2+ distinct calendar months.
-  // STRICT: only outgoing merchant charges (amount > 0, not income, not transfer).
-  // Excludes: tips, trips, cashouts, unloads, sweeps, deposits, refunds, rewards,
-  // interest, wallet events, instant pay, varo, uber/lyft cash, save-your-change.
-  const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
+  // Dynamic: merchants in 2+ distinct months not already in bills
   const dynMap={};
   S.expenses.forEach(e=>{
-    if(e.is_income||e.amount<1||isTransfer(e)) return;
-    if(e.category==='transfers'||e.category==='income') return;
     const desc=(e.description||'').trim();
     const month=(e.date||'').slice(0,7);
     if(!desc||!month) return;
     const key=desc.toLowerCase();
-    if(BILL_SKIP.test(key)) return;
     if(!dynMap[key]) dynMap[key]={desc,months:new Set(),amounts:[],dates:[]};
     dynMap[key].months.add(month);
-    dynMap[key].amounts.push(parseFloat(e.amount)||0);
+    dynMap[key].amounts.push(Math.abs(parseFloat(e.amount)||0));
     dynMap[key].dates.push(e.date||'');
   });
+  const SKIP_PATS=/uber|lyft|instapay|transfer|deposit|atm|zelle|venmo|cashapp|paypal|withdrawal|direct dep|payroll/i;
   const dynMatches=Object.values(dynMap)
-    .filter(d=>{
-      if(d.months.size<2) return false;
-      const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
-      if(avg<1||avg>2500) return false;
-      const stddev=Math.sqrt(d.amounts.reduce((s,a)=>s+Math.pow(a-avg,2),0)/d.amounts.length);
-      if(avg>0&&(stddev/avg)>0.3) return false;
-      if(S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))) return false;
-      if(patMatches.some(p=>d.desc.toLowerCase().includes(p.m))) return false;
-      return true;
-    })
+    .filter(d=>
+      d.months.size>=2&&
+      !SKIP_PATS.test(d.desc)&&
+      !S.bills.some(b=>b.name.toLowerCase().includes(d.desc.toLowerCase().slice(0,6)))&&
+      !patMatches.some(p=>d.desc.toLowerCase().includes(p.m))
+    )
     .map(d=>{
       const avg=d.amounts.reduce((s,a)=>s+a,0)/(d.amounts.length||1);
       const lastDate=d.dates.sort().slice(-1)[0];
@@ -2515,10 +2421,10 @@ async function requestAIBudget() {
   const card=document.getElementById('aiBudCard'); card.style.display='block';
   document.getElementById('aiBudRows').innerHTML='<div class="lrow"><div class="spinner"></div> Analyzing your transactions...</div>';
   const mFreq={};
-  S.expenses.forEach(e=>{const m=(e.description||'').toLowerCase().trim().substring(0,25);if(!mFreq[m]){mFreq[m]={count:0,total:0,cat:e.category||'other'};}mFreq[m].count++;mFreq[m].total+=e.amount;});
+  S.expenses.filter(e=>!e.is_income&&!isTransfer(e)).forEach(e=>{const m=(e.description||'').toLowerCase().trim().substring(0,25);const rawC=e.category;const cat=(rawC&&typeof rawC==='object'?rawC.cat:rawC)||'other';if(!mFreq[m]){mFreq[m]={count:0,total:0,cat};}mFreq[m].count++;mFreq[m].total+=e.amount;});
   const topM=Object.entries(mFreq).sort((a,b)=>b[1].total-a[1].total).slice(0,10).map(([name,{count,total,cat}])=>({name,count,total:Math.round(total),cat}));
   const cTotals={};const threeM=new Date();threeM.setMonth(threeM.getMonth()-3);
-  S.expenses.filter(e=>new Date(e.date+'T12:00:00')>=threeM&&!e.is_income).forEach(e=>{const c=e.category||'other';cTotals[c]=(cTotals[c]||0)+e.amount;});
+  S.expenses.filter(e=>new Date(e.date+'T12:00:00')>=threeM&&!e.is_income&&!isTransfer(e)).forEach(e=>{const raw=e.category;const c=(raw&&typeof raw==='object'?raw.cat:raw)||'other';cTotals[c]=(cTotals[c]||0)+e.amount;});
   const cMonthly=Object.fromEntries(Object.entries(cTotals).map(([c,t])=>[c,Math.round(t/3)]));
   const context=`Gig driver San Diego. 3-month category averages: ${JSON.stringify(cMonthly)}. Top merchants: ${JSON.stringify(topM)}. Monthly goal: $${S.settings.monthly_goal||9500}. Suggest smart monthly budget limits and flag high-spend merchants. Return ONLY JSON: {"budgets":{"food":N,"transportation":N,"shopping":N,"entertainment":N,"utilities":N,"health":N,"other":N},"flags":[{"merchant":"name","avg_monthly":N,"insight":"why this matters"}]}`;
   try {
@@ -2593,7 +2499,10 @@ async function syncPlaid() {
       // so they show in the Income tab on the Spend page
       // They are excluded from spending totals by the !e.is_income filter elsewhere
       const key=getMKey(t.description);
-      if(S.rules[key]) t.category=S.rules[key];
+      // Normalize rule: may be a plain string or a legacy {cat,sub} object
+      const rawRule=S.rules[key];
+      const ruleStr=rawRule&&typeof rawRule==='object'?rawRule.cat:(rawRule||null);
+      if(ruleStr) t.category=ruleStr;
       // Auto-categorize transfers
       const desc=(t.description||'').toLowerCase();
       if(!S.rules[key] && (desc.includes('save your change')||desc.includes('backup balance')||desc.includes('transfer')||desc.includes('zelle'))) {
