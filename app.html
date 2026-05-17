@@ -730,23 +730,42 @@ body{
   <button class="nb" onclick="showPage('finance')" id="nav-finance"><span class="nb-icon">◎</span><span class="nb-lbl">Finance</span></button>
 </nav>
 
-<!-- ═══ SINGLE FAB ═══ -->
-<div class="fabs">
-  <button class="fab-livvy" onclick="openModal('fabSheet')" title="Actions" id="mainFab">
-    <span class="fab-livvy-l">L.</span>
-    <span class="fab-livvy-dot">livvy</span>
+<!-- ═══ SPEED DIAL FAB ═══ -->
+<style>
+.sd-wrap{position:fixed;bottom:82px;right:14px;z-index:200;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.sd-actions{display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .18s ease,transform .18s ease;}
+.sd-wrap.open .sd-actions{pointer-events:auto;opacity:1;transform:translateY(0);}
+.sd-action{display:flex;align-items:center;gap:8px;flex-direction:row-reverse;}
+.sd-action-btn{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 3px 12px rgba(0,0,0,.35);transition:transform .12s;}
+.sd-action-btn:active{transform:scale(.91);}
+.sd-action-lbl{background:var(--card);color:var(--text);font-size:.72rem;font-weight:600;padding:4px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);border:1px solid var(--border2);}
+.sd-main{width:50px;height:50px;border-radius:13px;background:var(--text);color:var(--bg);border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 4px 18px rgba(0,0,0,.4);transition:transform .15s;}
+.sd-main:active{transform:scale(.91);}
+.sd-main-l{font-size:1.1rem;font-weight:900;font-style:italic;line-height:1;}
+.sd-main-dot{font-size:.42rem;font-weight:700;opacity:.55;letter-spacing:.5px;text-transform:uppercase;}
+.sd-backdrop{display:none;position:fixed;inset:0;z-index:199;}
+.sd-wrap.open .sd-backdrop{display:block;}
+</style>
+<div class="sd-backdrop" onclick="closeFab()"></div>
+<div class="sd-wrap" id="sdWrap">
+  <div class="sd-actions" id="sdActions" role="menu">
+    <div class="sd-action">
+      <button class="sd-action-btn" style="background:var(--text);color:var(--bg)" onclick="closeFab();openSupport()" aria-label="Smart Support">✦</button>
+      <span class="sd-action-lbl">Smart Support</span>
+    </div>
+    <div class="sd-action">
+      <button class="sd-action-btn" style="background:#facc15;color:#1a1a1a" onclick="closeFab();openModal('quickMod')" aria-label="Quick Log Earnings">⚡</button>
+      <span class="sd-action-lbl">Quick Log</span>
+    </div>
+  </div>
+  <button class="sd-main" id="mainFab" onclick="toggleFab()" aria-label="Actions" aria-expanded="false" aria-haspopup="true">
+    <span class="sd-main-l">L.</span>
+    <span class="sd-main-dot">livvy</span>
   </button>
 </div>
 
-<!-- FAB action sheet -->
-<div class="ov" id="fabSheet">
-  <div class="modal" style="padding-bottom:env(safe-area-inset-bottom,12px)">
-    <div class="mhandle"></div>
-    <button class="btn btn-p" style="width:100%;margin-bottom:9px" onclick="closeModal('fabSheet');openModal('quickMod')">⚡ Quick Log Earnings</button>
-    <button class="btn btn-p" style="width:100%;margin-bottom:9px;background:var(--s1);color:var(--text);border:1.5px solid var(--border2)" onclick="closeModal('fabSheet');openSupport()">✦ Smart Support</button>
-    <button class="btn btn-g" style="width:100%" onclick="closeModal('fabSheet')">Cancel</button>
-  </div>
-</div>
+<!-- fabSheet kept hidden for legacy compat -->
+<div class="ov" id="fabSheet" style="display:none"></div>
 
 <!-- ═══ SORT STYLE ═══ -->
 <style>
@@ -1271,10 +1290,10 @@ const TRANSFER_KEYWORDS = ['save your change','account unload','backup balance',
 function isTransfer(t) {
   if (!t) return false;
   if (t.category === 'transfers') return true;
+  if (t.category === 'Internal Transfer') return true; // CAT_TREE parent key
   const desc = (t.description || t.label || '').toLowerCase();
   return TRANSFER_KEYWORDS.some(k => desc.includes(k));
 }
-
 function todayEarnings() { refreshDate(); return S.earnings.filter(e=>e.date===_todayStr).reduce((s,e)=>s+e.amount,0); }
 function todaySpending()  { refreshDate(); return S.expenses.filter(e=>e.date===_todayStr&&!e.is_income&&!isTransfer(e)).reduce((s,e)=>s+e.amount,0); }
 function weekEarnings() {
@@ -1311,6 +1330,19 @@ function showPage(id) {
 }
 
 // Smart Support — standalone overlay chat
+function toggleFab() {
+  const wrap=document.getElementById('sdWrap');
+  const btn=document.getElementById('mainFab');
+  const open=wrap.classList.toggle('open');
+  btn.setAttribute('aria-expanded',String(open));
+}
+function closeFab() {
+  const wrap=document.getElementById('sdWrap');
+  const btn=document.getElementById('mainFab');
+  wrap.classList.remove('open');
+  btn.setAttribute('aria-expanded','false');
+}
+
 let _supportHistory = [];
 function openSupport() {
   document.getElementById('supportOv').classList.add('open');
@@ -1933,6 +1965,8 @@ const CAT_TREE = {
   'Shopping': ['Clothing & Apparel','Electronics & Work Tech Gadgets','Online Retail / Marketplace Purchases','Personal Care & Toiletries'],
   'Entertainment & Lifestyle': ['Movies','Concerts & Events','Bars & Nightlife','Gym & Fitness Memberships','Travel','Flights & Lodging'],
   'Health & Medical': ['Primary / Urgent Care Copays','Pharmacy & Medications','Health / Dental Insurance Premiums'],
+  'Internal Transfer': ['Account-to-Account Transfer','Savings Sweep','Wallet Unload / Card Reload','Backup Balance / Advance Repayment','Zelle / Venmo / CashApp Transfer','Other Internal Movement'],
+  'Income / Deposit': ['Gig Earnings (Uber/Lyft)','Tips Received','Direct Deposit / Payroll','Cash Advance Received','Refund / Reimbursement Received','Other Income'],
   'Other / Miscellaneous': ['Uncategorized Cash Outflows','Business Expense One-Offs','Reimbursements / Adjustments']
 };
 const CAT_KEYS = Object.keys(CAT_TREE);
