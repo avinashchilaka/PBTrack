@@ -667,6 +667,23 @@ function renderBills() {
 }
 
 // Bill suggestions from Plaid
+function normDesc(s){
+  return (s||'').toLowerCase().replace(/[*./\-]/g,' ').replace(/\s+/g,' ').trim();
+}
+function getBillDismissed(){
+  try{return new Set(JSON.parse(localStorage.getItem('pb_bill_dismissed')||'[]'));}
+  catch{return new Set();}
+}
+function dismissBillCard(){
+  const keys=(window._sugBills||[]).map(b=>b.m);
+  if(keys.length){
+    const d=getBillDismissed();
+    keys.forEach(k=>d.add(k));
+    localStorage.setItem('pb_bill_dismissed',JSON.stringify([...d]));
+  }
+  const card=document.getElementById('billSugCard');
+  if(card) card.style.display='none';
+}
 function showBillSuggestions() {
   const PATS=[
     {m:'at&t',name:'AT&T',amount:541,due_day:5,category:'utilities'},
@@ -680,16 +697,24 @@ function showBillSuggestions() {
     {m:'tesla insurance',name:'Tesla Insurance',amount:212.96,due_day:5,category:'insurance'},
     {m:'mystro',name:'Mystro Driver',amount:18.99,due_day:12,category:'subscription'},
   ];
-  const suggested=PATS.filter(p=>
-    S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
-    !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
-  );
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
+  const dismissed=getBillDismissed();
+  const suggested=PATS.filter(p=>{
+    if(dismissed.has(p.m)) return false;
+    const normPat=normDesc(p.m);
+    const recentMatches=S.expenses.filter(e=>
+      new Date((e.date||'')+'T12:00:00')>=cutoff&&
+      normDesc(e.description).includes(normPat)
+    );
+    return recentMatches.length>=2&&
+      !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]));
+  });
   const card=document.getElementById('billSugCard');
   if(!card||!suggested.length){if(card)card.style.display='none';return;}
   window._sugBills=suggested;
   card.style.display='block';
   card.style.cssText='display:block;background:var(--s1);border:1px solid var(--border2);border-radius:var(--r);padding:13px;margin-bottom:10px';
-  card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div class="label-sm-bold">🔍 Recurring charges detected</div><button class="bicon" onclick="this.parentElement.parentElement.style.display='none'">✕</button></div>
+  card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div class="label-sm-bold">🔍 Recurring charges detected</div><button class="bicon" onclick="dismissBillCard()">✕</button></div>
     ${suggested.map((b,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
       <div><div style="font-size:.8rem;font-weight:600">${b.name}</div><div class="meta-xs">${fmt(b.amount)}/mo · due ${b.due_day}th</div></div>
       <button class="bicon" onclick="addSugBill(${i})">+ Add</button>
