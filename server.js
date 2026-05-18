@@ -189,19 +189,24 @@ app.patch('/api/debts/:id', auth, async (req, res) => {
   res.json(data);
 });
 
+app.delete('/api/debts/:id', auth, async (req, res) => {
+  await supabase.from('debts').delete().eq('id',req.params.id).eq('user_id',req.user.id);
+  res.json({ ok:true });
+});
+
 // ════════════════════════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════════════════════════
 app.get('/api/settings', auth, async (req, res) => {
   const { data } = await supabase.from('users')
-    .select('monthly_goal,daily_quota,budgets,rules').eq('id',req.user.id).single();
+    .select('monthly_goal,daily_quota,budgets,rules,sw_monthly').eq('id',req.user.id).single();
   res.json(data||{});
 });
 
 app.put('/api/settings', auth, async (req, res) => {
-  const { monthly_goal, daily_quota, budgets } = req.body;
+  const { monthly_goal, daily_quota, budgets, sw_monthly } = req.body;
   await supabase.from('users')
-    .update({ monthly_goal, daily_quota, budgets: budgets||null }).eq('id',req.user.id);
+    .update({ monthly_goal, daily_quota, budgets: budgets||null, sw_monthly: sw_monthly||0 }).eq('id',req.user.id);
   res.json({ ok:true });
 });
 
@@ -221,6 +226,13 @@ app.post('/api/rules', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════
 // SHIFTS
 // ════════════════════════════════════════════════════════
+app.get('/api/shifts', auth, async (req, res) => {
+  const { data, error } = await supabase.from('shifts')
+    .select('*').eq('user_id',req.user.id).order('date',{ ascending:false }).limit(200);
+  if (error) return res.status(500).json({ error:error.message });
+  res.json({ data: data||[] });
+});
+
 app.post('/api/shifts', auth, async (req, res) => {
   const { date, start, end, hours, earned, perHour, notes } = req.body;
   const { data, error } = await supabase.from('shifts')
