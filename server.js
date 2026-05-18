@@ -454,7 +454,7 @@ app.get('/api/ai/briefing', auth, async (req, res) => {
     const { data: bills } = await supabase.from('bills')
       .select('name,amount,due_day,paid').eq('user_id',req.user.id);
     const { data: user } = await supabase.from('users')
-      .select('monthly_goal,daily_quota').eq('id',req.user.id).single();
+      .select('monthly_goal,daily_quota,name').eq('id',req.user.id).single();
 
     const todayEarned = (earnings||[]).filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0);
     const monthEarned = (earnings||[]).reduce((s,e)=>s+e.amount,0);
@@ -463,7 +463,7 @@ app.get('/api/ai/briefing', auth, async (req, res) => {
     const overdueBills = unpaidBills.filter(b=>b.due_day<todayDay);
     const daysLeft   = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()-todayDay;
 
-    const prompt = `You are a personal finance coach for Avinash, a gig driver in San Diego.
+    const prompt = `You are a personal finance coach for ${(user?.name||'').trim()||'the user'}, a gig driver.
 Today ${today}:
 - Earned today: $${todayEarned.toFixed(2)}
 - Month earned: $${monthEarned.toFixed(2)} of $${user?.monthly_goal||9500} goal

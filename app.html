@@ -1231,24 +1231,15 @@ function calcDailyTarget() {
     oneTimePerDay += p.amount / daysUntil;
   });
 
-  // 4. Next month rent ($2,084) — only if rent not already in bills
-  // Prevents double-counting when rent is added as a bill
-  const hasRentInBills = S.bills.some(b => b.name.toLowerCase().includes('rent'));
-  const NEXT_RENT = hasRentInBills ? 0 : 2084;
-  const rentPerDay = NEXT_RENT / daysLeft;
-
-  // 5. Splitwise — use monthly contribution setting (default $0)
+  // 4. Splitwise — use monthly contribution setting (default $0)
   // We do NOT auto-spread Splitwise total — these are long-term personal loans
   // User sets a monthly Splitwise contribution in settings
   const swMonthly = S.settings.sw_monthly || 0;
   const swPerDay = swMonthly / 30;
 
-  // 6. Daily ops — (1191 + 400 + 1000) / 30 = $86.37/day
-  const dailyOps = (1191 + 400 + 1000) / 30;
-
   // Urgent: overdue spread across remaining days
   const urgentPerDay = overdueBills / daysLeft;
-  const totalPerDay  = urgentPerDay + upcomingPerDay + oneTimePerDay + rentPerDay + swPerDay + dailyOps;
+  const totalPerDay  = urgentPerDay + upcomingPerDay + oneTimePerDay + swPerDay;
 
   // Subtract today's progress
   return Math.max(S.settings.daily_quota||400, totalPerDay - todayEarned + todaySpent);
@@ -1269,7 +1260,6 @@ function populateTargetBreak() {
   const dL=getDaysLeft();
   const day=_todayDay;
   const todayE=todayEarnings(), todayS=todaySpending();
-  const hasRent=S.bills.some(b=>b.name.toLowerCase().includes('rent'));
 
   // Calculate each component as /day contribution
   const overdueBills=S.bills.filter(b=>!b.paid&&!b.skipped&&b.due_day<day).reduce((s,b)=>s+b.amount,0);
@@ -1289,10 +1279,8 @@ function populateTargetBreak() {
     otPerDay+=p.amount/d;
   });
 
-  const rentPerDay=hasRent?0:2084/dL;
   const swPerDay=(S.settings.sw_monthly||0)/30;
-  const dailyOps=86.37;
-  const totalPerDay=urgentPerDay+upcomingPerDay+otPerDay+rentPerDay+swPerDay+dailyOps;
+  const totalPerDay=urgentPerDay+upcomingPerDay+otPerDay+swPerDay;
   const target=Math.max(S.settings.daily_quota||400, totalPerDay-todayE+todayS);
 
   document.getElementById('targetBreakDate').textContent=
@@ -1311,20 +1299,13 @@ function populateTargetBreak() {
    +row('📅','Upcoming bills',fmt(upcomingPerDay)+'/day',null,
         upcomingDetails.length?upcomingDetails.join(' · '):'No upcoming bills')
    +(otPerDay>0?row('⚡','One-time payments',fmt(otPerDay)+'/day',null,'Each payment ÷ days until due'):'')
-   +(!hasRent?row('🏠','Next month rent',fmt(rentPerDay)+'/day',null,`$2,084 ÷ ${dL} days`):
-              row('🏠','Rent','In bills ✓','var(--green)','Counted in upcoming bills above'))
    +(swPerDay>0?row('💸','Splitwise contribution',fmt(swPerDay)+'/day',null,`${fmt(S.settings.sw_monthly)}/mo ÷ 30`):'')
-   +row('⛽','Daily ops',fmt(dailyOps)+'/day',null,'Charging + road + living')
    +(todayE>0?row('✅','Already earned today','-'+fmt(todayE),'var(--green)','Subtracted from target'):'')
    +(todayS>0?row('💸','Spent today','+'+fmt(todayS),null,'Added back to target'):'')
    +`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:2px">
       <div style="font-size:.9rem;font-weight:800">🎯 Your target today</div>
       <div style="font-size:1.15rem;font-weight:800;color:var(--gold)">${fmt(target)}</div>
     </div>`;
-}
-
-function hasRentInBillsCheck() {
-  return S.bills.some(b=>b.name.toLowerCase().includes('rent'));
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1413,7 +1394,7 @@ async function sendSupport() {
   document.getElementById('supportSug').style.display='none';
   const loading=addSupportBubble('','ai',true);
   try {
-    const context=`Avinash is a gig driver (Uber/Lyft) in San Diego. App: Livvy.
+    const context=`${(usr().name||'').trim()||'User'} is a gig driver (Uber/Lyft). App: Livvy.
 Today ${_todayStr}: earned $${todayEarnings().toFixed(2)}, spent $${todaySpending().toFixed(2)}
 Week: $${weekEarnings().toFixed(2)} | Month: $${monthEarnings().toFixed(2)} | Goal: $${S.settings.monthly_goal}
 Daily target: $${calcDailyTarget().toFixed(2)}
@@ -1533,14 +1514,11 @@ function renderHome() {
   // Breakdown
   const bd=getBreakdown();
   document.getElementById('bdTarget').textContent=fmt(target);
-  const _hasRent=S.bills.some(b=>b.name.toLowerCase().includes('rent'));
   document.getElementById('bdBody').innerHTML=`
     ${bd.overdue>0?`<div class="bdrow"><span class="bdlbl">📋 Overdue bills (unpaid)</span><span style="color:var(--red)">${fmt(bd.overdue)} ÷ ${bd.daysLeft}d = ${fmt(bd.overdue/bd.daysLeft)}/day</span></div>`:'<div class="bdrow"><span class="bdlbl">📋 Overdue bills</span><span style="color:var(--green)">None ✓</span></div>'}
     ${bd.upcoming>0?`<div class="bdrow"><span class="bdlbl">📅 Upcoming bills</span><span>${fmt(bd.upcoming)} total this month</span></div>`:''}
     ${bd.onetime>0?`<div class="bdrow"><span class="bdlbl">⚡ One-time payments</span><span>${fmt(bd.onetime)}</span></div>`:''}
-    ${!_hasRent?`<div class="bdrow"><span class="bdlbl">🏠 Next month rent</span><span>${fmt(2084/bd.daysLeft)}/day</span></div>`:''}
     ${(S.settings.sw_monthly||0)>0?`<div class="bdrow"><span class="bdlbl">💸 Splitwise contribution</span><span>${fmt((S.settings.sw_monthly||0)/30)}/day</span></div>`:''}
-    <div class="bdrow"><span class="bdlbl">⛽ Daily ops</span><span>$86.37/day</span></div>
     <div class="bdrow" style="font-weight:800;padding-top:8px"><span class="bdlbl" style="color:var(--text)">🎯 Your target today</span><span style="color:var(--gold)">${fmt(target)}</span></div>`;
 
   // Break-even
@@ -2242,60 +2220,72 @@ function renderBills() {
 
 // Bill suggestions from Plaid
 function showBillSuggestions() {
+  // Merchant patterns: name + category only — amounts are derived from actual Plaid transactions
   const PATS=[
-    {m:'at&t',name:'AT&T',amount:541,due_day:5,category:'utilities'},
-    {m:'tesla subscription',name:'Tesla Subscription',amount:106.67,due_day:12,category:'vehicle'},
-    {m:'crunchyroll',name:'Crunchyroll',amount:2.99,due_day:13,category:'subscription'},
-    {m:'smartcredit',name:'SmartCredit',amount:24.95,due_day:13,category:'subscription'},
-    {m:'uber *one',name:'Uber One',amount:9.99,due_day:12,category:'subscription'},
-    {m:'apple.com/bill',name:'Apple Services',amount:9.99,due_day:7,category:'subscription'},
-    {m:'google one',name:'Google One',amount:19.99,due_day:21,category:'subscription'},
-    {m:'wells fargo auto',name:'Wells Fargo Auto',amount:728.86,due_day:21,category:'vehicle'},
-    {m:'tesla insurance',name:'Tesla Insurance',amount:212.96,due_day:5,category:'insurance'},
-    {m:'mystro',name:'Mystro Driver',amount:18.99,due_day:12,category:'subscription'},
-    // Streaming & entertainment
-    {m:'netflix',name:'Netflix',amount:15.49,due_day:8,category:'subscription'},
-    {m:'hulu',name:'Hulu',amount:7.99,due_day:10,category:'subscription'},
-    {m:'disney',name:'Disney+',amount:10.99,due_day:14,category:'subscription'},
-    {m:'max.com',name:'Max (HBO)',amount:15.99,due_day:15,category:'subscription'},
-    {m:'spotify',name:'Spotify',amount:9.99,due_day:11,category:'subscription'},
-    {m:'youtube premium',name:'YouTube Premium',amount:13.99,due_day:6,category:'subscription'},
-    {m:'amazon prime',name:'Amazon Prime',amount:14.99,due_day:20,category:'subscription'},
-    {m:'peacock',name:'Peacock',amount:5.99,due_day:17,category:'subscription'},
-    {m:'paramount',name:'Paramount+',amount:5.99,due_day:9,category:'subscription'},
     // Wireless & internet
-    {m:'t-mobile',name:'T-Mobile',amount:80,due_day:1,category:'utilities'},
-    {m:'verizon',name:'Verizon',amount:85,due_day:5,category:'utilities'},
-    {m:'spectrum',name:'Spectrum Internet',amount:49.99,due_day:18,category:'utilities'},
-    {m:'xfinity',name:'Xfinity',amount:59.99,due_day:22,category:'utilities'},
-    {m:'cox ',name:'Cox',amount:59.99,due_day:20,category:'utilities'},
-    // Finance & credit
-    {m:'navy federal',name:'Navy Federal',amount:0,due_day:1,category:'debt'},
-    {m:'chase auto',name:'Chase Auto',amount:0,due_day:1,category:'vehicle'},
-    {m:'capital one auto',name:'Capital One Auto',amount:0,due_day:1,category:'vehicle'},
+    {m:'at&t',name:'AT&T',category:'utilities'},
+    {m:'t-mobile',name:'T-Mobile',category:'utilities'},
+    {m:'verizon',name:'Verizon',category:'utilities'},
+    {m:'spectrum',name:'Spectrum Internet',category:'utilities'},
+    {m:'xfinity',name:'Xfinity',category:'utilities'},
+    {m:'cox ',name:'Cox',category:'utilities'},
+    // Streaming & entertainment
+    {m:'netflix',name:'Netflix',category:'subscription'},
+    {m:'hulu',name:'Hulu',category:'subscription'},
+    {m:'disney',name:'Disney+',category:'subscription'},
+    {m:'max.com',name:'Max (HBO)',category:'subscription'},
+    {m:'spotify',name:'Spotify',category:'subscription'},
+    {m:'youtube premium',name:'YouTube Premium',category:'subscription'},
+    {m:'amazon prime',name:'Amazon Prime',category:'subscription'},
+    {m:'peacock',name:'Peacock',category:'subscription'},
+    {m:'paramount',name:'Paramount+',category:'subscription'},
+    {m:'crunchyroll',name:'Crunchyroll',category:'subscription'},
+    {m:'apple.com/bill',name:'Apple Services',category:'subscription'},
+    {m:'google one',name:'Google One',category:'subscription'},
+    {m:'icloud',name:'iCloud+',category:'subscription'},
+    {m:'microsoft 365',name:'Microsoft 365',category:'subscription'},
+    {m:'dropbox',name:'Dropbox',category:'subscription'},
+    // Vehicle & auto loans
+    {m:'tesla subscription',name:'Tesla Subscription',category:'vehicle'},
+    {m:'wells fargo auto',name:'Wells Fargo Auto',category:'vehicle'},
+    {m:'chase auto',name:'Chase Auto',category:'vehicle'},
+    {m:'capital one auto',name:'Capital One Auto',category:'vehicle'},
     // Insurance
-    {m:'geico',name:'GEICO Insurance',amount:0,due_day:1,category:'insurance'},
-    {m:'progressive',name:'Progressive Insurance',amount:0,due_day:1,category:'insurance'},
-    {m:'state farm',name:'State Farm',amount:0,due_day:1,category:'insurance'},
+    {m:'tesla insurance',name:'Tesla Insurance',category:'insurance'},
+    {m:'geico',name:'GEICO Insurance',category:'insurance'},
+    {m:'progressive',name:'Progressive Insurance',category:'insurance'},
+    {m:'state farm',name:'State Farm',category:'insurance'},
+    // Finance
+    {m:'navy federal',name:'Navy Federal',category:'debt'},
+    {m:'smartcredit',name:'SmartCredit',category:'subscription'},
     // Gig driver tools
-    {m:'para ',name:'Para App',amount:7.99,due_day:15,category:'subscription'},
-    {m:'gridwise',name:'Gridwise',amount:9.99,due_day:15,category:'subscription'},
-    {m:'stride',name:'Stride Health',amount:0,due_day:1,category:'health'},
-    {m:'everlance',name:'Everlance',amount:8.99,due_day:15,category:'subscription'},
-    // Cloud & productivity
-    {m:'icloud',name:'iCloud+',amount:2.99,due_day:9,category:'subscription'},
-    {m:'microsoft 365',name:'Microsoft 365',amount:9.99,due_day:5,category:'subscription'},
-    {m:'dropbox',name:'Dropbox',amount:9.99,due_day:5,category:'subscription'},
+    {m:'uber *one',name:'Uber One',category:'subscription'},
+    {m:'mystro',name:'Mystro Driver',category:'subscription'},
+    {m:'para ',name:'Para App',category:'subscription'},
+    {m:'gridwise',name:'Gridwise',category:'subscription'},
+    {m:'stride',name:'Stride Health',category:'health'},
+    {m:'everlance',name:'Everlance',category:'subscription'},
   ];
-  const patMatches=PATS.filter(p=>
-    S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
-    !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
-  );
-  // Dynamic: merchants appearing in 2+ distinct calendar months.
-  // STRICT: only outgoing merchant charges (amount > 0, not income, not transfer).
-  // Excludes: tips, trips, cashouts, unloads, sweeps, deposits, refunds, rewards,
-  // interest, wallet events, instant pay, varo, uber/lyft cash, save-your-change.
+  // Shared noise filter — used by both patMatches and dynMatches
   const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
+  // Pattern matches: derive amount/due_day from real transactions.
+  // Require charges in ≥2 distinct calendar months — same bar as dynMatches —
+  // so a single one-off charge never generates a bill suggestion.
+  const patMatches=PATS.filter(p=>
+    !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
+  ).map(p=>{
+    const txns=S.expenses.filter(e=>{
+      const desc=(e.description||'').toLowerCase();
+      return desc.includes(p.m)&&!e.is_income&&e.amount>0&&!BILL_SKIP.test(desc)&&!isTransfer(e);
+    });
+    const months=new Set(txns.map(t=>(t.date||'').slice(0,7)).filter(Boolean));
+    if(months.size<2) return null; // need evidence from ≥2 months before suggesting
+    const avgAmt=txns.reduce((s,t)=>s+t.amount,0)/txns.length;
+    const lastDate=txns.map(t=>t.date).sort().slice(-1)[0];
+    const due_day=lastDate?parseInt(lastDate.slice(8),10)||1:1;
+    return {...p,amount:parseFloat(avgAmt.toFixed(2)),due_day};
+  }).filter(Boolean);
+  // Dynamic: unknown merchants appearing in 2+ distinct calendar months.
   const dynMap={};
   S.expenses.forEach(e=>{
     if(e.is_income||e.amount<1||isTransfer(e)) return;
@@ -2896,7 +2886,7 @@ async function requestAIBudget() {
   const cTotals={};const threeM=new Date();threeM.setMonth(threeM.getMonth()-3);
   S.expenses.filter(e=>new Date(e.date+'T12:00:00')>=threeM&&!e.is_income&&!isTransfer(e)).forEach(e=>{const raw=e.category;const c=(raw&&typeof raw==='object'?raw.cat:raw)||'other';cTotals[c]=(cTotals[c]||0)+e.amount;});
   const cMonthly=Object.fromEntries(Object.entries(cTotals).map(([c,t])=>[c,Math.round(t/3)]));
-  const context=`Gig driver San Diego. 3-month category averages: ${JSON.stringify(cMonthly)}. Top merchants: ${JSON.stringify(topM)}. Monthly goal: $${S.settings.monthly_goal||9500}. Suggest smart monthly budget limits and flag high-spend merchants. Return ONLY JSON: {"budgets":{"food":N,"transportation":N,"shopping":N,"entertainment":N,"utilities":N,"health":N,"other":N},"flags":[{"merchant":"name","avg_monthly":N,"insight":"why this matters"}]}`;
+  const context=`Gig driver. 3-month category averages: ${JSON.stringify(cMonthly)}. Top merchants: ${JSON.stringify(topM)}. Monthly goal: $${S.settings.monthly_goal||9500}. Suggest smart monthly budget limits and flag high-spend merchants. Return ONLY JSON: {"budgets":{"food":N,"transportation":N,"shopping":N,"entertainment":N,"utilities":N,"health":N,"other":N},"flags":[{"merchant":"name","avg_monthly":N,"insight":"why this matters"}]}`;
   try {
     const r=await req('/api/ai/budget',{method:'POST',body:{context}});
     if(!r?.budgets) throw new Error('No response');
@@ -3028,7 +3018,7 @@ async function sendChat() {
   const loading=addBubble('','ai',true);
   try {
     const now=new Date();
-    const context=`Avinash is a gig driver (Uber/Lyft) in San Diego. App: Livvy.
+    const context=`${(usr().name||'').trim()||'User'} is a gig driver (Uber/Lyft). App: Livvy.
 Today ${_todayStr}: earned $${todayEarnings().toFixed(2)}, spent $${todaySpending().toFixed(2)}
 Week: $${weekEarnings().toFixed(2)} | Month: $${monthEarnings().toFixed(2)} | Goal: $${S.settings.monthly_goal}
 Daily target: $${calcDailyTarget().toFixed(2)}
