@@ -612,14 +612,6 @@ body{
     <div class="sbox"><div class="sval" id="sMonth" style="color:var(--red)">$0</div><div class="slbl">This Month</div></div>
   </div>
 
-  <div class="card" style="display:flex;align-items:center;justify-content:space-between">
-    <div><div style="font-size:.83rem;font-weight:700" id="plaidStatus">Connect Bank</div><div style="font-size:.65rem;color:var(--text3);margin-top:1px">Link via Plaid for auto-sync</div></div>
-    <div style="display:flex;gap:5px">
-      <button class="bicon" id="plaidBtn" onclick="openPlaidLink()">🏦 Connect</button>
-      <button class="bicon" id="fullSyncBtn" style="display:none" onclick="fullResync()" title="Pull all historical transactions">↺ Full Sync</button>
-    </div>
-  </div>
-
   <!-- Donut -->
   <div class="card">
     <div class="clbl">Spending By Category</div>
@@ -684,37 +676,62 @@ body{
 
   <!-- Finance tab bar -->
   <div class="istabs" style="margin-bottom:13px">
-    <button class="ftab istab active" onclick="showFinanceTab('bills',this)">Bills</button>
-    <button class="ftab istab" onclick="showFinanceTab('accounts',this)">Accounts</button>
+    <button class="ftab istab" onclick="showFinanceTab('bills',this)">Bills</button>
+    <button class="ftab istab active" onclick="showFinanceTab('accounts',this)">Accounts</button>
     <button class="ftab istab" onclick="showFinanceTab('investing',this)">Investing</button>
   </div>
 
   <!-- Bills panel -->
-  <div id="ftab-bills">
+  <div id="ftab-bills" style="display:none">
     <div class="sgrid">
       <div class="sbox"><div class="sval" id="billTotal" style="color:var(--red)">$0</div><div class="slbl">Monthly Total</div></div>
       <div class="sbox"><div class="sval" id="billUnpaid" style="color:var(--gold)">$0</div><div class="slbl">Unpaid</div></div>
     </div>
     <div id="billSugCard" style="display:none" class="card"></div>
-    <div class="shdr" style="flex-wrap:wrap;gap:6px 8px">
-      <div class="stitle" style="flex:1;min-width:120px">Bills &amp; Payments</div>
-      <div style="display:flex;gap:5px;flex-shrink:0">
-        <button class="bicon" style="white-space:nowrap" onclick="openModal('addBillMod')">+ Recurring</button>
-        <button class="bicon" style="white-space:nowrap" onclick="openModal('addOTMod')">+ One-Time</button>
+    <div class="shdr">
+      <div class="stitle">Bills &amp; Payments</div>
+      <div style="position:relative" id="billAddWrap">
+        <button class="bicon" onclick="toggleBillAddMenu()" id="billAddBtn">+ Add ▾</button>
+        <div id="billAddMenu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--border2);border-radius:var(--r-sm);padding:5px;z-index:150;min-width:150px;box-shadow:0 6px 20px var(--shadow)">
+          <div class="sort-opt" onclick="openModal('addBillMod');toggleBillAddMenu()">+ Recurring Bill</div>
+          <div class="sort-opt" onclick="openModal('addOTMod');toggleBillAddMenu()">+ One-Time Payment</div>
+        </div>
       </div>
     </div>
     <div class="card" style="padding:0 13px" id="billsList"><div class="empty">No bills yet</div></div>
   </div>
 
   <!-- Accounts panel -->
-  <div id="ftab-accounts" style="display:none">
+  <div id="ftab-accounts">
+    <!-- Balance summary strip -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+      <div class="sbox" onclick="openFundsDetail('credit')" style="cursor:pointer">
+        <div class="sval" id="sumCredit" style="color:var(--text3)">$0</div>
+        <div class="slbl">Credit Owed</div>
+      </div>
+      <div class="sbox" onclick="openFundsDetail('debit')" style="cursor:pointer">
+        <div class="sval" id="sumDebit" style="color:var(--green)">$0</div>
+        <div class="slbl">Debit Avail.</div>
+      </div>
+      <div class="sbox" onclick="openFundsDetail('savings')" style="cursor:pointer">
+        <div class="sval" id="sumSavings" style="color:var(--green)">$0</div>
+        <div class="slbl">Savings</div>
+      </div>
+    </div>
+    <!-- Bank sync card -->
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div><div style="font-size:.83rem;font-weight:700" id="plaidStatus">Connect Bank</div><div style="font-size:.65rem;color:var(--text3);margin-top:1px">Link via Plaid for auto-sync</div></div>
+      <div style="display:flex;gap:5px">
+        <button class="bicon" id="plaidBtn" onclick="openPlaidLink()">🏦 Connect</button>
+        <button class="bicon" id="fullSyncBtn" style="display:none" onclick="fullResync()" title="Pull all historical transactions">↺ Full Sync</button>
+      </div>
+    </div>
     <div class="shdr"><div class="stitle">Bank Accounts</div><button class="bicon" onclick="openPlaidLink()">+ Connect</button></div>
     <div class="card" style="padding:0 13px" id="acctsList"><div class="empty">No accounts connected</div></div>
     <div class="shdr"><div class="stitle">Splitwise</div><button class="bicon" onclick="connectSplitwise()">Connect</button></div>
     <div class="card" style="padding:0 13px" id="swList"><div class="empty">Connect Splitwise to see balances</div></div>
     <div class="shdr"><div class="stitle">Manual Debts</div><button class="bicon" onclick="openModal('addDebtMod')">+ Add</button></div>
     <div class="card" style="padding:0 13px" id="debtsList"><div class="empty">No manual debts</div></div>
-
   </div>
 
   <!-- Investing panel (placeholder) -->
@@ -992,7 +1009,14 @@ body{
 <div class="ov" id="drillMod">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="dhdr"><div class="dicon" id="drillIcon">⚡</div><div><div class="dtotal" id="drillTotal">$0</div><div class="dsub" id="drillSub"></div></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button onclick="navigateDrill(-1)" style="background:var(--s1);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:1.1rem;padding:5px 13px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1">‹</button>
+      <div class="dhdr" style="flex:1;justify-content:center;margin:0 8px;padding:0">
+        <div class="dicon" id="drillIcon">⚡</div>
+        <div><div class="dtotal" id="drillTotal">$0</div><div class="dsub" id="drillSub"></div></div>
+      </div>
+      <button onclick="navigateDrill(1)" id="drillNextBtn" style="background:var(--s1);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:1.1rem;padding:5px 13px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1">›</button>
+    </div>
     <div id="drillList" style="max-height:60vh;overflow-y:auto"></div>
     <button class="btn btn-g" style="width:100%;margin-top:9px" onclick="closeModal('drillMod')">Close</button>
   </div>
@@ -1156,6 +1180,8 @@ let _shiftInterval = null;
 let _chatHistory = [];
 let _flowDays = [];
 let _approvedBudgets = new Set();
+let _drillPeriod = 'today';
+let _drillOffset = 0;
 
 // ═══════════════════════════════════════════════════════
 // API
@@ -1573,11 +1599,32 @@ function toggleBD() {
 
 // Funds detail modal
 function openFundsDetail(type) {
-  const title=type==='debit'?'Available Debit Accounts':'Credit Balances';
-  document.getElementById('fundsModTitle').textContent=title;
-  let html='';
+  let title, html='';
   if(type==='debit') {
+    title='Available Debit Accounts';
     const accts=S.accounts.filter(a=>a.type==='depository');
+    const totalDebit=accts.reduce((s,a)=>s+(a.balances?.available||a.balances?.current||0),0);
+    // Total aggregate: all debit minus all credit owed
+    const totalAgg=S.accounts.reduce((s,a)=>{
+      const bal=a.balances?.available||a.balances?.current||0;
+      return a.type==='credit'?s-(a.balances?.current||0):s+bal;
+    },0);
+    html=`<div style="background:var(--s1);border:1px solid var(--border2);border-radius:var(--r);padding:13px 14px;margin-bottom:12px;text-align:center">
+        <div style="font-size:.55rem;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Total Aggregate Balance</div>
+        <div style="font-size:1.5rem;font-weight:800;color:${totalAgg>=0?'var(--green)':'var(--red)'}">${totalAgg<0?'-':''}${fmt(Math.abs(totalAgg))}</div>
+        <div style="font-size:.6rem;color:var(--text3);margin-top:3px">All accounts · debit available minus credit owed</div>
+      </div>`
+    +(accts.length
+      ?accts.map(a=>`<div class="acct-row">
+          <div class="acct-icon">🏦</div>
+          <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · ${ttc(a.subtype||a.type)}</div></div>
+          <div class="acct-bal" style="color:var(--green)">${fmt(a.balances?.available||a.balances?.current||0)}</div>
+        </div>`).join('')
+        +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Debit Available</span><span style="color:var(--green)">${fmt(totalDebit)}</span></div>`
+      :'<div class="empty">No debit accounts connected</div>');
+  } else if(type==='savings') {
+    title='Savings Accounts';
+    const accts=S.accounts.filter(a=>a.type==='depository'&&(a.subtype==='savings'||a.subtype==='money market'||(a.name||'').toLowerCase().includes('sav')));
     const total=accts.reduce((s,a)=>s+(a.balances?.available||a.balances?.current||0),0);
     html=accts.length
       ?accts.map(a=>`<div class="acct-row">
@@ -1585,20 +1632,23 @@ function openFundsDetail(type) {
           <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · ${ttc(a.subtype||a.type)}</div></div>
           <div class="acct-bal" style="color:var(--green)">${fmt(a.balances?.available||a.balances?.current||0)}</div>
         </div>`).join('')
-        +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Available</span><span style="color:var(--green)">${fmt(total)}</span></div>`
-      :'<div class="empty">No debit accounts connected</div>';
+        +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Savings</span><span style="color:var(--green)">${fmt(total)}</span></div>`
+      :'<div class="empty">No savings accounts found</div>';
   } else {
+    title='Credit Card Balances';
     const accts=S.accounts.filter(a=>a.type==='credit');
     const total=accts.reduce((s,a)=>s+(a.balances?.current||0),0);
     html=accts.length
       ?accts.map(a=>`<div class="acct-row">
           <div class="acct-icon">💳</div>
           <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · Credit</div></div>
-          <div class="acct-bal" style="color:var(--red)">${fmt(a.balances?.current||0)} owed</div>
+          <div class="acct-bal" style="color:${(a.balances?.current||0)>0?'var(--red)':'var(--text3)'}">${(a.balances?.current||0)>0?fmt(a.balances.current)+' owed':'$0.00'}</div>
         </div>`).join('')
-        +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Credit Owed</span><span style="color:var(--red)">${fmt(total)}</span></div>`
+        +`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-weight:700;font-size:.85rem"><span>Total Credit Owed</span><span style="color:${total>0?'var(--red)':'var(--text3)'}">
+          ${total>0?fmt(total)+' owed':'$0.00'}</span></div>`
       :'<div class="empty">No credit accounts connected</div>';
   }
+  document.getElementById('fundsModTitle').textContent=title;
   document.getElementById('fundsModBody').innerHTML=html;
   openModal('fundsMod');
 }
@@ -1636,6 +1686,8 @@ function sortTxns(a,b) {
   return 0;
 }
 document.addEventListener('click',e=>{ const m=document.getElementById('sortMenu'); if(m&&!m.contains(e.target)&&!e.target.closest('#sortBtn')) m.style.display='none'; });
+function toggleBillAddMenu(){const m=document.getElementById('billAddMenu');if(m)m.style.display=m.style.display==='none'?'block':'none';}
+document.addEventListener('click',e=>{const w=document.getElementById('billAddWrap');const m=document.getElementById('billAddMenu');if(m&&w&&!w.contains(e.target))m.style.display='none';});
 
 // ═══════════════════════════════════════════════════════
 // MERCHANT LOGOS
@@ -1653,6 +1705,26 @@ const DOMAINS={
   'uber eats':'ubereats.com','costco':'costco.com','whole foods':'wholefoods.com',
 };
 const CAT_IC={food:'🍔',transportation:'🚗',shopping:'🛍️',entertainment:'🎬',utilities:'💡',health:'💊',housing:'🏠',other:'📦',debt:'💳',subscription:'📱',transfers:'↔️',income:'💰',auto:'🚘'};
+
+// ── PLATFORM LOGOS — scalable gig platform brand assets ──
+const PLATFORM_LOGOS={
+  'Uber':        'https://logo.clearbit.com/uber.com',
+  'Lyft':        'https://logo.clearbit.com/lyft.com',
+  'DoorDash':    'https://logo.clearbit.com/doordash.com',
+  'Instacart':   'https://logo.clearbit.com/instacart.com',
+  'HopSkipDrive':'https://logo.clearbit.com/hopskipdrive.com',
+  'Amazon Flex': 'https://logo.clearbit.com/amazon.com',
+  'Grubhub':     'https://logo.clearbit.com/grubhub.com',
+  'Shipt':       'https://logo.clearbit.com/shipt.com',
+  'Gopuff':      'https://logo.clearbit.com/gopuff.com',
+};
+const PLATFORM_EMOJI={'Uber':'🚗','Lyft':'💜','Cash':'💵','DoorDash':'🍔','Instacart':'🛒','HopSkipDrive':'🚐','Amazon Flex':'📦','Other':'💰'};
+function getPlatformLogoEl(platform) {
+  const fb=PLATFORM_EMOJI[platform]||'💰';
+  const logo=PLATFORM_LOGOS[platform];
+  if(logo) return `<div class="tlogo" style="width:32px;height:32px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center"><img src="${logo}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=\\"font-size:.9rem\\">${fb}</span>'" alt="${platform}"></div>`;
+  return `<div class="tlogo" style="font-size:.9rem;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${fb}</div>`;
+}
 
 function logoEl(desc,cat) {
   const d=(desc||'').toLowerCase();
@@ -1833,14 +1905,6 @@ function renderSpend() {
   refreshDate();
   document.getElementById('sToday').textContent=fmt(todaySpending());
   document.getElementById('sMonth').textContent=fmt(monthSpending());
-  if(S.accounts.length) {
-    document.getElementById('plaidStatus').textContent='🏦 Bank Connected';
-    const pb=document.getElementById('plaidBtn');
-    pb.textContent='↺ Sync';
-    pb.onclick=syncPlaid;
-    const fb=document.getElementById('fullSyncBtn');
-    if(fb) fb.style.display='';
-  }
   drawDonut(); drawFlow(); renderBudBars(); renderCatChips(); renderTxnList();
 }
 
@@ -2189,6 +2253,39 @@ function showBillSuggestions() {
     {m:'wells fargo auto',name:'Wells Fargo Auto',amount:728.86,due_day:21,category:'vehicle'},
     {m:'tesla insurance',name:'Tesla Insurance',amount:212.96,due_day:5,category:'insurance'},
     {m:'mystro',name:'Mystro Driver',amount:18.99,due_day:12,category:'subscription'},
+    // Streaming & entertainment
+    {m:'netflix',name:'Netflix',amount:15.49,due_day:8,category:'subscription'},
+    {m:'hulu',name:'Hulu',amount:7.99,due_day:10,category:'subscription'},
+    {m:'disney',name:'Disney+',amount:10.99,due_day:14,category:'subscription'},
+    {m:'max.com',name:'Max (HBO)',amount:15.99,due_day:15,category:'subscription'},
+    {m:'spotify',name:'Spotify',amount:9.99,due_day:11,category:'subscription'},
+    {m:'youtube premium',name:'YouTube Premium',amount:13.99,due_day:6,category:'subscription'},
+    {m:'amazon prime',name:'Amazon Prime',amount:14.99,due_day:20,category:'subscription'},
+    {m:'peacock',name:'Peacock',amount:5.99,due_day:17,category:'subscription'},
+    {m:'paramount',name:'Paramount+',amount:5.99,due_day:9,category:'subscription'},
+    // Wireless & internet
+    {m:'t-mobile',name:'T-Mobile',amount:80,due_day:1,category:'utilities'},
+    {m:'verizon',name:'Verizon',amount:85,due_day:5,category:'utilities'},
+    {m:'spectrum',name:'Spectrum Internet',amount:49.99,due_day:18,category:'utilities'},
+    {m:'xfinity',name:'Xfinity',amount:59.99,due_day:22,category:'utilities'},
+    {m:'cox ',name:'Cox',amount:59.99,due_day:20,category:'utilities'},
+    // Finance & credit
+    {m:'navy federal',name:'Navy Federal',amount:0,due_day:1,category:'debt'},
+    {m:'chase auto',name:'Chase Auto',amount:0,due_day:1,category:'vehicle'},
+    {m:'capital one auto',name:'Capital One Auto',amount:0,due_day:1,category:'vehicle'},
+    // Insurance
+    {m:'geico',name:'GEICO Insurance',amount:0,due_day:1,category:'insurance'},
+    {m:'progressive',name:'Progressive Insurance',amount:0,due_day:1,category:'insurance'},
+    {m:'state farm',name:'State Farm',amount:0,due_day:1,category:'insurance'},
+    // Gig driver tools
+    {m:'para ',name:'Para App',amount:7.99,due_day:15,category:'subscription'},
+    {m:'gridwise',name:'Gridwise',amount:9.99,due_day:15,category:'subscription'},
+    {m:'stride',name:'Stride Health',amount:0,due_day:1,category:'health'},
+    {m:'everlance',name:'Everlance',amount:8.99,due_day:15,category:'subscription'},
+    // Cloud & productivity
+    {m:'icloud',name:'iCloud+',amount:2.99,due_day:9,category:'subscription'},
+    {m:'microsoft 365',name:'Microsoft 365',amount:9.99,due_day:5,category:'subscription'},
+    {m:'dropbox',name:'Dropbox',amount:9.99,due_day:5,category:'subscription'},
   ];
   const patMatches=PATS.filter(p=>
     S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m))&&
@@ -2318,11 +2415,26 @@ function renderMore() {
   const an=document.getElementById('avDropName');if(an)an.textContent=u.name||'Account';
   const ae=document.getElementById('avDropEmail');if(ae)ae.textContent=u.email||'';
 
+  // Accounts summary strip
+  const debitTotal=S.accounts.filter(a=>a.type==='depository').reduce((s,a)=>s+(a.balances?.available||a.balances?.current||0),0);
+  const creditTotal=S.accounts.filter(a=>a.type==='credit').reduce((s,a)=>s+(a.balances?.current||0),0);
+  const savingsTotal=S.accounts.filter(a=>a.type==='depository'&&(a.subtype==='savings'||a.subtype==='money market'||(a.name||'').toLowerCase().includes('sav'))).reduce((s,a)=>s+(a.balances?.available||a.balances?.current||0),0);
+  const sd=document.getElementById('sumDebit');if(sd){sd.textContent=fmt(debitTotal);sd.style.color='var(--green)';}
+  const sc=document.getElementById('sumCredit');if(sc){sc.textContent=fmt(creditTotal);sc.style.color=creditTotal>0?'var(--red)':'var(--text3)';}
+  const ss=document.getElementById('sumSavings');if(ss){ss.textContent=fmt(savingsTotal);ss.style.color='var(--green)';}
+
+  // Sync card state
+  if(S.accounts.length){
+    const ps=document.getElementById('plaidStatus');if(ps)ps.textContent='🏦 Bank Connected';
+    const pb=document.getElementById('plaidBtn');if(pb){pb.textContent='↺ Sync';pb.onclick=syncPlaid;}
+    const fb=document.getElementById('fullSyncBtn');if(fb)fb.style.display='';
+  }
+
   document.getElementById('acctsList').innerHTML=S.accounts.length
     ?S.accounts.map(a=>`<div class="acct-row">
         <div class="acct-icon">${a.type==='credit'?'💳':'🏦'}</div>
         <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · ${ttc(a.subtype||a.type)}</div></div>
-        <div class="acct-bal" style="color:${a.type==='credit'?'var(--red)':'var(--green)'}">${a.type==='credit'?'-':'+'}${fmt(a.balances?.current||0)}</div>
+        <div class="acct-bal" style="color:${a.type==='credit'?(a.balances?.current||0)>0?'var(--red)':'var(--text3)':'var(--green)'}">${a.type==='credit'?((a.balances?.current||0)>0?'-'+fmt(a.balances.current):'$0.00'):fmt(a.balances?.available||a.balances?.current||0)}</div>
       </div>`).join('')
     :'<div class="empty">No accounts connected</div>';
 
@@ -2335,7 +2447,13 @@ function renderMore() {
     :'<div class="empty">No manual debts</div>';
 }
 
-function renderFinance() { renderBills(); renderMore(); }
+function renderFinance() {
+  // Always default to Accounts tab
+  const accountsBtn=document.querySelector('.ftab[onclick*="accounts"]');
+  showFinanceTab('accounts', accountsBtn);
+  renderBills();
+  renderMore();
+}
 
 function showFinanceTab(tab, btn) {
   ['bills','accounts','investing'].forEach(t=>{
@@ -2731,7 +2849,7 @@ async function addDebt() {
   const notes=document.getElementById('dNotes').value.trim();
   if(!name||!amt) return;
   const res=await req('/api/debts',{method:'POST',body:{name,amount:amt,original:amt,monthly_payment:mo,notes}});
-  if(res){S.debts.push({...res,name,amount:amt,original:amt,monthly_payment:mo,notes});closeModal('addDebtMod');['dName','dAmt','dMonthly','dNotes'].forEach(id=>document.getElementById(id).value='');saveLocal();renderMore();}
+  if(res){S.debts.push({...res,name,amount:amt,original:amt,monthly_payment:mo,notes});closeModal('addDebtMod');['dName','dAmt','dMonthly','dNotes'].forEach(id=>document.getElementById(id).value='');saveLocal();renderFinance();}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2932,23 +3050,90 @@ function addBubble(text,role,isLoading=false) {
 // DRILL DOWN
 // ═══════════════════════════════════════════════════════
 function drillEarn(period) {
-  refreshDate();
-  const now=new Date(),mon=new Date(now);
-  mon.setDate(now.getDate()-((now.getDay()+6)%7));mon.setHours(0,0,0,0);
-  let list=[...S.earnings],title='',icon='⚡';
-  if(period==='today'){list=list.filter(e=>e.date===_todayStr);title='Today';}
-  else if(period==='week'){list=list.filter(e=>new Date(e.date+'T12:00:00')>=mon);title='This Week';}
-  else if(period==='month'){list=list.filter(e=>e.date.startsWith(_monthStr));title='This Month';}
-  list=list.sort((a,b)=>b.date.localeCompare(a.date));
-  const total=list.reduce((s,e)=>s+e.amount,0);
-  const pI={Uber:'🚗',Lyft:'💜',Cash:'💵',Other:'💰'};
-  document.getElementById('drillIcon').textContent=icon;
-  document.getElementById('drillTotal').textContent=fmt(total);
-  document.getElementById('drillSub').textContent=`${list.length} entries · ${title}`;
-  document.getElementById('drillList').innerHTML=list.length
-    ?groupedByDate(list, e=>`<div class="txn"><div class="tlogo" style="font-size:.9rem">${pI[e.platform]||'💰'}</div><div class="tbody"><div class="tname">${e.platform}${e.note?' · '+e.note:''}</div><div class="tmeta">${e.date}</div></div><div class="tamt" style="color:var(--green)">+${fmt(e.amount)}</div></div>`)
-    :'<div class="empty">No earnings this period</div>';
+  _drillPeriod=period; _drillOffset=0;
+  renderDrill();
   openModal('drillMod');
+}
+
+function navigateDrill(dir) {
+  if(dir>0&&_drillOffset>=0) return; // no future
+  _drillOffset+=dir;
+  renderDrill();
+}
+
+function renderDrill() {
+  refreshDate();
+  const now=new Date();
+  let list=[...S.earnings], title='';
+
+  if(_drillPeriod==='today') {
+    const d=new Date(now); d.setDate(d.getDate()+_drillOffset);
+    const dStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    list=list.filter(e=>e.date===dStr);
+    title=_drillOffset===0?'Today':_drillOffset===-1?'Yesterday':d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  } else if(_drillPeriod==='week') {
+    const mon=new Date(now);
+    mon.setDate(now.getDate()-((now.getDay()+6)%7)+(_drillOffset*7));mon.setHours(0,0,0,0);
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
+    list=list.filter(e=>{const d=new Date(e.date+'T12:00:00');return d>=mon&&d<=sun;});
+    const f2=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    title=_drillOffset===0?'This Week':`Week of ${f2(mon)}`;
+  } else if(_drillPeriod==='month') {
+    const mDate=new Date(now.getFullYear(),now.getMonth()+_drillOffset,1);
+    const mStr=mDate.getFullYear()+'-'+String(mDate.getMonth()+1).padStart(2,'0');
+    list=list.filter(e=>e.date.startsWith(mStr));
+    title=_drillOffset===0?'This Month':mDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  }
+
+  list=list.sort((a,b)=>a.date.localeCompare(b.date));
+  const total=list.reduce((s,e)=>s+e.amount,0);
+  const cnt=list.length;
+  document.getElementById('drillIcon').textContent='⚡';
+  document.getElementById('drillTotal').textContent=fmt(total);
+  document.getElementById('drillSub').textContent=`${cnt} entr${cnt===1?'y':'ies'} · ${title}`;
+
+  const nb=document.getElementById('drillNextBtn');
+  if(nb){nb.style.opacity=_drillOffset>=0?'0.3':'1';nb.disabled=_drillOffset>=0;}
+
+  if(!list.length){document.getElementById('drillList').innerHTML='<div class="empty">No earnings this period</div>';return;}
+
+  // Group by date → by platform
+  const byDate={};
+  list.forEach(e=>{
+    if(!byDate[e.date])byDate[e.date]={};
+    if(!byDate[e.date][e.platform])byDate[e.date][e.platform]=[];
+    byDate[e.date][e.platform].push(e);
+  });
+
+  let html='', first=true;
+  Object.keys(byDate).sort().forEach(date=>{
+    const dObj=new Date(date+'T12:00:00');
+    const yDate=new Date(now);yDate.setDate(now.getDate()-1);
+    const yStr=yDate.getFullYear()+'-'+String(yDate.getMonth()+1).padStart(2,'0')+'-'+String(yDate.getDate()).padStart(2,'0');
+    const dayLabel=date===_todayStr?'Today':date===yStr?'Yesterday':dObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const dayTotal=Object.values(byDate[date]).flat().reduce((s,e)=>s+e.amount,0);
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px;${!first?'border-top:1px solid var(--border);margin-top:6px':''}">
+      <div style="font-size:.65rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3)">${dayLabel}</div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--green)">+${fmt(dayTotal)}</div></div>`;
+    first=false;
+    Object.keys(byDate[date]).forEach(platform=>{
+      const entries=byDate[date][platform];
+      const platTotal=entries.reduce((s,e)=>s+e.amount,0);
+      html+=`<div style="background:var(--s1);border-radius:var(--r-sm);padding:9px 11px;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:9px">
+          ${getPlatformLogoEl(platform)}
+          <div style="flex:1;min-width:0"><div style="font-size:.83rem;font-weight:700">${platform}</div>
+          <div style="font-size:.62rem;color:var(--text3)">${entries.length} log${entries.length!==1?'s':''}</div></div>
+          <div style="font-size:.9rem;font-weight:800;color:var(--green)">+${fmt(platTotal)}</div></div>`;
+      if(entries.length>1){entries.forEach(e=>{
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 0;border-top:1px solid var(--border);margin-top:5px">
+          <div style="font-size:.7rem;color:var(--text3)">${e.note||'—'}</div>
+          <div style="font-size:.7rem;font-weight:700;color:var(--green)">+${fmt(e.amount)}</div></div>`;
+      });}
+      html+=`</div>`;
+    });
+  });
+  document.getElementById('drillList').innerHTML=html;
 }
 
 // ═══════════════════════════════════════════════════════
