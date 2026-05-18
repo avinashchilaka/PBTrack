@@ -9,6 +9,7 @@ create table if not exists users (
   password_hash text not null,
   monthly_goal  numeric default 9500,
   daily_quota   numeric default 400,
+  sw_monthly    numeric default 0,
   budgets       jsonb,
   rules         jsonb,
   created_at    timestamptz default now()

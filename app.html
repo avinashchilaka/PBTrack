@@ -2443,7 +2443,7 @@ function renderMore() {
     :'<div class="empty">Connect Splitwise to see balances</div>';
 
   document.getElementById('debtsList').innerHTML=S.debts.length
-    ?S.debts.map(d=>`<div class="acct-row"><div class="acct-icon">💸</div><div class="acct-body"><div class="acct-name">${d.name}</div><div class="acct-sub">${d.monthly_payment?fmt(d.monthly_payment)+'/mo · ':''}${d.notes||''}</div></div><div class="acct-bal" style="color:var(--red)">-${fmt(d.amount)}</div></div>`).join('')
+    ?S.debts.map(d=>`<div class="acct-row"><div class="acct-icon">💸</div><div class="acct-body"><div class="acct-name">${d.name}</div><div class="acct-sub">${d.monthly_payment?fmt(d.monthly_payment)+'/mo · ':''}${d.notes||''}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><div class="acct-bal" style="color:var(--red)">-${fmt(d.amount)}</div><button class="bicon" onclick="deleteDebt('${d.id}')">×</button></div></div>`).join('')
     :'<div class="empty">No manual debts</div>';
 }
 
@@ -2852,6 +2852,13 @@ async function addDebt() {
   if(res){S.debts.push({...res,name,amount:amt,original:amt,monthly_payment:mo,notes});closeModal('addDebtMod');['dName','dAmt','dMonthly','dNotes'].forEach(id=>document.getElementById(id).value='');saveLocal();renderFinance();}
 }
 
+async function deleteDebt(id) {
+  if(!confirm('Delete this debt?')) return;
+  await req(`/api/debts/${id}`,{method:'DELETE'});
+  S.debts=S.debts.filter(d=>d.id!==id);
+  saveLocal();renderMore();
+}
+
 // ═══════════════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════════════
@@ -3219,8 +3226,8 @@ async function init() {
   // Fetch from server
   setSyncing(true);
   try {
-    const [earnings,bills,debts,settings,onetime]=await Promise.all([
-      req('/api/earnings'),req('/api/bills'),req('/api/debts'),req('/api/settings'),req('/api/onetime'),
+    const [earnings,bills,debts,settings,onetime,shiftsRes]=await Promise.all([
+      req('/api/earnings'),req('/api/bills'),req('/api/debts'),req('/api/settings'),req('/api/onetime'),req('/api/shifts'),
     ]);
     // STRICT: only manual earnings go to S.earnings
     if(earnings?.data) S.earnings=earnings.data.filter(e=>e.is_manual!==false);
@@ -3229,6 +3236,8 @@ async function init() {
     if(settings)       S.settings={...S.settings,...settings};
     if(onetime?.data)  S.onetime=onetime.data;
     if(settings?.budgets) S.budgets={...S.budgets,...settings.budgets};
+    // Map DB column names (start_time/end_time/per_hour) to frontend names (start/end/perHour)
+    if(shiftsRes?.data) S.shifts=shiftsRes.data.map(s=>({...s,start:s.start_time,end:s.end_time,perHour:s.per_hour}));
 
     // Load merchant rules from server
     const rulesRes=await req('/api/rules');
