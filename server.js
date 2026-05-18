@@ -463,7 +463,7 @@ app.get('/api/ai/briefing', auth, async (req, res) => {
     const overdueBills = unpaidBills.filter(b=>b.due_day<todayDay);
     const daysLeft   = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()-todayDay;
 
-    const prompt = `You are a personal finance coach for ${user?.name||'the user'}, a gig driver.
+    const prompt = `You are a personal finance coach for ${(user?.name||'').trim()||'the user'}, a gig driver.
 Today ${today}:
 - Earned today: $${todayEarned.toFixed(2)}
 - Month earned: $${monthEarned.toFixed(2)} of $${user?.monthly_goal||9500} goal

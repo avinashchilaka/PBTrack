@@ -1394,7 +1394,7 @@ async function sendSupport() {
   document.getElementById('supportSug').style.display='none';
   const loading=addSupportBubble('','ai',true);
   try {
-    const context=`${usr().name||'User'} is a gig driver (Uber/Lyft). App: Livvy.
+    const context=`${(usr().name||'').trim()||'User'} is a gig driver (Uber/Lyft). App: Livvy.
 Today ${_todayStr}: earned $${todayEarnings().toFixed(2)}, spent $${todaySpending().toFixed(2)}
 Week: $${weekEarnings().toFixed(2)} | Month: $${monthEarnings().toFixed(2)} | Goal: $${S.settings.monthly_goal}
 Daily target: $${calcDailyTarget().toFixed(2)}
@@ -2266,22 +2266,26 @@ function showBillSuggestions() {
     {m:'stride',name:'Stride Health',category:'health'},
     {m:'everlance',name:'Everlance',category:'subscription'},
   ];
+  // Shared noise filter — used by both patMatches and dynMatches
+  const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
+  // Pattern matches: derive amount/due_day from real transactions.
+  // Require charges in ≥2 distinct calendar months — same bar as dynMatches —
+  // so a single one-off charge never generates a bill suggestion.
   const patMatches=PATS.filter(p=>
-    S.expenses.some(e=>(e.description||'').toLowerCase().includes(p.m)&&!e.is_income&&e.amount>0)&&
     !S.bills.some(b=>b.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]))
   ).map(p=>{
-    // Derive amount and due_day from actual Plaid transactions instead of hardcoding
-    const txns=S.expenses.filter(e=>(e.description||'').toLowerCase().includes(p.m)&&!e.is_income&&e.amount>0);
-    const avgAmt=txns.length?txns.reduce((s,t)=>s+t.amount,0)/txns.length:0;
+    const txns=S.expenses.filter(e=>{
+      const desc=(e.description||'').toLowerCase();
+      return desc.includes(p.m)&&!e.is_income&&e.amount>0&&!BILL_SKIP.test(desc)&&!isTransfer(e);
+    });
+    const months=new Set(txns.map(t=>(t.date||'').slice(0,7)).filter(Boolean));
+    if(months.size<2) return null; // need evidence from ≥2 months before suggesting
+    const avgAmt=txns.reduce((s,t)=>s+t.amount,0)/txns.length;
     const lastDate=txns.map(t=>t.date).sort().slice(-1)[0];
     const due_day=lastDate?parseInt(lastDate.slice(8),10)||1:1;
     return {...p,amount:parseFloat(avgAmt.toFixed(2)),due_day};
-  });
-  // Dynamic: merchants appearing in 2+ distinct calendar months.
-  // STRICT: only outgoing merchant charges (amount > 0, not income, not transfer).
-  // Excludes: tips, trips, cashouts, unloads, sweeps, deposits, refunds, rewards,
-  // interest, wallet events, instant pay, varo, uber/lyft cash, save-your-change.
-  const BILL_SKIP=/uber(?!\s*\*one)|lyft|instapay|instant\s*pay|instant\s*cash|cashout|cash\s*out|transfer|unload|sweep|deposit|atm|zelle|venmo|cash\s*app|paypal|withdrawal|direct\s*dep|payroll|tip\b|tips\b|trip\b|trips\b|income|refund|reward|interest|credit\s*card\s*payment|wallet|uber\s*cash|lyft\s*cash|varo|save\s*your\s*change|backup\s*balance|account\s*unload/i;
+  }).filter(Boolean);
+  // Dynamic: unknown merchants appearing in 2+ distinct calendar months.
   const dynMap={};
   S.expenses.forEach(e=>{
     if(e.is_income||e.amount<1||isTransfer(e)) return;
@@ -3014,7 +3018,7 @@ async function sendChat() {
   const loading=addBubble('','ai',true);
   try {
     const now=new Date();
-    const context=`${usr().name||'User'} is a gig driver (Uber/Lyft). App: Livvy.
+    const context=`${(usr().name||'').trim()||'User'} is a gig driver (Uber/Lyft). App: Livvy.
 Today ${_todayStr}: earned $${todayEarnings().toFixed(2)}, spent $${todaySpending().toFixed(2)}
 Week: $${weekEarnings().toFixed(2)} | Month: $${monthEarnings().toFixed(2)} | Goal: $${S.settings.monthly_goal}
 Daily target: $${calcDailyTarget().toFixed(2)}
