@@ -91,7 +91,7 @@ function populateTargetBreak() {
 
   const rentPerDay=hasRent?0:2084/dL;
   const swPerDay=(S.settings.sw_monthly||0)/30;
-  const dailyOps=86.37;
+  const dailyOps=(1191+400+1000)/30;
   const totalPerDay=urgentPerDay+upcomingPerDay+otPerDay+rentPerDay+swPerDay+dailyOps;
   const target=Math.max(S.settings.daily_quota||400, totalPerDay-todayE+todayS);
 
