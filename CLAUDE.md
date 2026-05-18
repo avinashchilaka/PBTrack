@@ -38,30 +38,18 @@ Database schema: run the full contents of `database.sql` in the Supabase SQL Edi
 
 ```
 Browser
-  app.html          ← dashboard shell (all 5 tabs + 13 modals)
-  index.html        ← login/signup page
-  styles.css        ← all styling, CSS design tokens, dark/light theme
-
-Frontend JS (loaded as plain <script> tags in app.html):
-  storage.js        ← saveLocal / loadLocal / logout
-  ui-helpers.js     ← flash messages, sync indicator, modal open/close
-  data-io.js        ← JSON backup export / import
-  modals.js         ← modal open/close + tap-outside-to-dismiss
-  txn-row.js        ← transaction row renderer, Clearbit logos, category icons
-  target-calc.js    ← daily target formula + all earnings/spending calculations
-  shift-timer.js    ← shift start/stop/tick/save
-  plaid.js          ← Plaid Link flow, syncPlaid(), loadAccounts()
-  ai.js             ← briefing card, AI chat, budget suggestions
-  app.js            ← state object S, req() API wrapper, navigation, render fns, init
+  app.html    ← complete frontend: HTML + inline CSS + inline JavaScript
+              (all 5 tabs, 13+ modals, global state, all render functions, API layer)
+  index.html  ← login/signup page (self-contained, no external JS dependencies)
 
 Backend:
-  server.js         ← Express API, auth, all CRUD routes, Plaid, Splitwise, AI
+  server.js   ← Express API, auth, all CRUD routes, Plaid, Splitwise, AI
 
 Database:
   Supabase (PostgreSQL) — all persistent data
 ```
 
-The frontend is **not a framework app** — it's vanilla JS with a single global state object `S` in `app.js`. All JS files share this global scope via script tags. There is no bundler, build step, or module system.
+The frontend is **not a framework app** — it is vanilla JS with no bundler, no module system, and no build step. All JavaScript lives in a single inline `<script>` block at the bottom of `app.html` (starting around line 1099). The only external script loaded is the Plaid Link CDN library.
 
 ## Critical Data Separation Rule
 
@@ -75,9 +63,9 @@ Plaid transactions with `is_income: true` (deposits/credits) live in `S.expenses
 
 ## State and API Layer
 
-**Global state** (`app.js`): `S` holds `earnings`, `expenses`, `bills`, `onetime`, `debts`, `splitwise`, `accounts`, `rules`, `budgets`, `settings`, `shifts`.
+**Global state** (inline in `app.html`): `S` holds `earnings`, `expenses`, `bills`, `onetime`, `debts`, `splitwise`, `accounts`, `rules`, `budgets`, `settings`, `shifts`.
 
-**`req(path, opts)`** (`app.js`): central fetch wrapper that injects `Authorization: Bearer <token>` and handles 401 by calling `logout()`. Returns parsed JSON or `null` on error.
+**`req(path, opts)`** (inline in `app.html`): central fetch wrapper that injects `Authorization: Bearer <token>` and handles 401 by calling `logout()`. Returns parsed JSON or `null` on error.
 
 **localStorage cache**: `saveLocal()` / `loadLocal()` snapshot the entire `S` object to `pb_state`. This enables instant render on page load before API calls complete.
 
@@ -85,7 +73,7 @@ Plaid transactions with `is_income: true` (deposits/credits) live in `S.expenses
 
 ## Daily Target Formula
 
-Implemented in `target-calc.js → calcDailyTarget()`:
+Implemented in `calcDailyTarget()` (inline in `app.html`):
 
 1. Overdue bills (past due, unpaid) ÷ days left in month
 2. Each upcoming bill ÷ days until that bill's due day
@@ -96,7 +84,7 @@ Implemented in `target-calc.js → calcDailyTarget()`:
 
 Result = `max(daily_quota, totalPerDay - todayEarned + todaySpent)`
 
-Always use `refreshDate()` before accessing `_todayStr`, `_todayDay`, etc. — these are module-level cached values that must be fresh.
+Always use `refreshDate()` before accessing `_todayStr`, `_todayDay`, etc. — these are script-level cached values that must be fresh.
 
 ## Merchant Rules
 
@@ -115,10 +103,10 @@ All routes require JWT auth except `/api/auth/signup` and `/api/auth/login`.
 | `/api/earnings` | CRUD for manual earnings (always `is_manual: true`) |
 | `/api/bills` | CRUD for recurring monthly bills |
 | `/api/onetime` | CRUD for one-time payments |
-| `/api/debts` | CRUD for manual debts |
+| `/api/debts` | GET / POST / PATCH for manual debts (no DELETE endpoint yet) |
 | `/api/settings` | GET/PUT user settings + budget limits |
 | `/api/rules` | GET/POST merchant categorization rules |
-| `/api/shifts` | POST shift log entries |
+| `/api/shifts` | POST shift log entries (no GET endpoint — shifts load from localStorage only) |
 | `/api/plaid/*` | Link token, token exchange, transactions sync, accounts, reset-sync |
 | `/api/splitwise/*` | OAuth initiation, callback, balances |
 | `/api/ai/*` | Briefing (GET), chat (POST), budget suggestions (POST) |
@@ -136,10 +124,16 @@ All AI endpoints expect Claude to return raw JSON (no markdown fences). The back
 
 ## Theme
 
-Theme (dark/light) is time-based: **day mode 6am–6pm**, night mode otherwise. Applied by toggling the `day` class on `<html>` every minute in `app.js`. All color tokens are CSS variables in `styles.css`.
+Theme (dark/light) is time-based: **day mode 6am–6pm**, night mode otherwise. Applied by toggling the `day` class on `<html>` every minute. All color tokens are CSS variables defined in `app.html`'s inline `<style>` block.
 
 ## Deployment
 
 Hosted on Render (free tier — sleeps after 15 min inactivity, ~30-60s cold start). GitHub push triggers automatic redeploy. Build command: `npm install`. Start command: `node server.js`.
 
-The `supabase/functions/` directory contains legacy Deno edge functions (plaid-sync, splitwise-sync) that are **not used** — the active integrations are all in `server.js`.
+## Known Gaps (as of current codebase)
+
+- `GET /api/shifts` does not exist — shift history persists in localStorage only and is lost on new devices
+- `DELETE /api/debts/:id` does not exist — debts can be added and edited but not removed
+- `sw_monthly` (Splitwise monthly contribution) is saved to `S.settings` and used in target calc, but the `PUT /api/settings` handler does not persist it to the database — it survives in localStorage only
+- Google OAuth button exists in `index.html` but `GET /api/auth/google-url` is not implemented in `server.js`
+- RLS is enabled on all 9 Supabase tables but no policies are defined — the backend uses the `service_role` key exclusively so this works, but provides no row-level protection at the database layer
