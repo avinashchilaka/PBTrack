@@ -61,6 +61,9 @@ const S = {
 
 const fmt = n => '$' + Math.abs(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const ttc = s => (s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+// Sign-aware display for depository accounts (checking/savings can go negative)
+function fmtDebit(v) { return (v < 0 ? '-' : '') + fmt(v); }
+function debitColor(v) { return v < 0 ? 'var(--red)' : 'var(--green)'; }
 
 let _earnFilter = 'week';
 let _catFilter  = null;
@@ -181,7 +184,7 @@ function renderHome() {
   const debit = S.accounts.filter(a=>a.type==='depository').reduce((s,a)=>s+(a.balances?.available||a.balances?.current||0),0);
   const credit= S.accounts.filter(a=>a.type==='credit').reduce((s,a)=>s+(a.balances?.current||0),0);
   const dEl=document.getElementById('fundDebit'), cEl=document.getElementById('fundCredit');
-  dEl.textContent=fmt(debit); dEl.style.color='var(--green)';
+  dEl.textContent=fmtDebit(debit); dEl.style.color=debitColor(debit);
   cEl.textContent=fmt(credit);
   // Credit: if balance is high (close to limit) = red, if low = green
   cEl.style.color=credit>500?'var(--red)':'var(--green)';
@@ -262,9 +265,9 @@ function openFundsDetail(type) {
       ?accts.map(a=>`<div class="acct-row">
           <div class="acct-icon">🏦</div>
           <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · ${ttc(a.subtype||a.type)}</div></div>
-          <div class="acct-bal text-green">${fmt(a.balances?.available||a.balances?.current||0)}</div>
+          <div class="acct-bal" style="color:${debitColor(a.balances?.available||a.balances?.current||0)}">${fmtDebit(a.balances?.available||a.balances?.current||0)}</div>
         </div>`).join('')
-        +`<div class="acct-total-row"><span>Total Available</span><span class="text-green">${fmt(total)}</span></div>`
+        +`<div class="acct-total-row"><span>Total Available</span><span style="color:${debitColor(total)}">${fmtDebit(total)}</span></div>`
       :'<div class="empty">No debit accounts connected</div>';
   } else {
     const accts=S.accounts.filter(a=>a.type==='credit');
@@ -763,7 +766,7 @@ function renderMore() {
     ?S.accounts.map(a=>`<div class="acct-row">
         <div class="acct-icon">${a.type==='credit'?'💳':'🏦'}</div>
         <div class="acct-body"><div class="acct-name">${a.name}</div><div class="acct-sub">${a.institution||''} · ${ttc(a.subtype||a.type)}</div></div>
-        <div class="acct-bal" style="color:${a.type==='credit'?'var(--red)':'var(--green)'}">${a.type==='credit'?'-':'+'}${fmt(a.balances?.current||0)}</div>
+        <div class="acct-bal" style="color:${a.type==='credit'?'var(--red)':debitColor(a.balances?.current||0)}">${a.type==='credit'?'-'+fmt(a.balances?.current||0):fmtDebit(a.balances?.current||0)}</div>
       </div>`).join('')
     :'<div class="empty">No accounts connected</div>';
 
