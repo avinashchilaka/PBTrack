@@ -670,16 +670,27 @@ function renderBills() {
 function normDesc(s){
   return (s||'').toLowerCase().replace(/[*./\-]/g,' ').replace(/\s+/g,' ').trim();
 }
+const BILL_DISMISS_TTL=6*30*24*60*60*1000; // 180 days
 function getBillDismissed(){
-  try{return new Set(JSON.parse(localStorage.getItem('pb_bill_dismissed')||'[]'));}
-  catch{return new Set();}
+  try{
+    const now=Date.now();
+    const raw=JSON.parse(localStorage.getItem('pb_bill_dismissed')||'[]');
+    // migrate legacy plain-string entries: give them a fresh TTL window
+    const entries=raw.map(e=>typeof e==='string'?{key:e,dismissedAt:now}:e);
+    const active=entries.filter(e=>now-e.dismissedAt<BILL_DISMISS_TTL);
+    if(active.length!==entries.length) localStorage.setItem('pb_bill_dismissed',JSON.stringify(active));
+    return new Set(active.map(e=>e.key));
+  }catch{return new Set();}
 }
 function dismissBillCard(){
   const keys=(window._sugBills||[]).map(b=>b.m);
   if(keys.length){
-    const d=getBillDismissed();
-    keys.forEach(k=>d.add(k));
-    localStorage.setItem('pb_bill_dismissed',JSON.stringify([...d]));
+    const now=Date.now();
+    const raw=JSON.parse(localStorage.getItem('pb_bill_dismissed')||'[]');
+    const entries=raw.map(e=>typeof e==='string'?{key:e,dismissedAt:now}:e);
+    const existing=new Set(entries.map(e=>e.key));
+    keys.forEach(k=>{if(!existing.has(k))entries.push({key:k,dismissedAt:now});});
+    localStorage.setItem('pb_bill_dismissed',JSON.stringify(entries));
   }
   const card=document.getElementById('billSugCard');
   if(card) card.style.display='none';
